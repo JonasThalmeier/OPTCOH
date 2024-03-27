@@ -9,12 +9,55 @@ load('TXsequences/TXsequence_QPSK_64GBaud.mat');
 
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
+
+% Create the SRRC filter (same as used for TX or initial filtering)
+srrcFilter = rcosdesign(PulseShaping.rho, PulseShaping.Span, SIG.Sps, 'sqrt');
+
+% Assume rxSig is your received SRRC filtered signal
+% Apply the matched filter (which is the same SRRC filter here)
+%rxSig_Xpol = filter(srrcFilter, 1, SIG.Xpol.txSig);
+%rxSig_Ypol = filter(srrcFilter, 1, SIG.Ypol.txSig);
+
 delay = PulseShaping.Span * SIG.Sps / 2;
 rxSig_Xpol = filter(PulseShaping.b_coeff, 1, SIG.Xpol.txSig);
-rxSig_Xpol = rxSig_Xpol(delay+1:end);
+%rxSig_Xpol = rxSig_Xpol(delay+1:end);
 rxSig_Ypol = filter(PulseShaping.b_coeff, 1, SIG.Ypol.txSig);
-rxSig_Ypol = rxSig_Ypol(delay+1:end);
+%rxSig_Ypol = rxSig_Ypol(delay+1:end);
 
+%-------------------------------------------------------------------------
+% Select the first 30 elements
+n1 = 1;
+n2 = 200;
+selectedElements = rxSig_Xpol(n1:n2);
+
+% Calculate amplitude and phase
+amplitude = abs(selectedElements);
+phase = angle(selectedElements)*180/pi;
+
+% Create a new figure
+figure;
+
+% Plot amplitude
+subplot(2, 1, 1);  % This creates a subplot with 2 rows, 1 column, and selects the 1st subplot.
+plot(n1:n2, amplitude, '-o');
+title('Amplitude of the First 30 Elements of rxSig_Xpol');
+xlabel('Element Index');
+ylabel('Amplitude');
+
+% Plot phase
+subplot(2, 1, 2);  % This selects the 2nd subplot in the same figure.
+plot(n1:n2, phase, '-x');
+title('Phase of the First 30 Elements of rxSig_Xpol');
+xlabel('Element Index');
+ylabel('Phase (deg)');
+yline(-180);
+yline(-90);
+yline(90);
+yline(180);
+
+
+
+%--------------------------------------------------------------------------
 
 % Downsample the signal
 % Assuming Sps is your number of samples per symbol
