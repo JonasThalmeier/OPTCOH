@@ -9,8 +9,11 @@ load('TXsequences/TXsequence_QPSK_64GBaud.mat');
 
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
+delay = PulseShaping.Span * SIG.Sps / 2;
 rxSig_Xpol = filter(PulseShaping.b_coeff, 1, SIG.Xpol.txSig);
+rxSig_Xpol = rxSig_Xpol(delay+1:end);
 rxSig_Ypol = filter(PulseShaping.b_coeff, 1, SIG.Ypol.txSig);
+rxSig_Ypol = rxSig_Ypol(delay+1:end);
 
 
 % Downsample the signal
