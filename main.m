@@ -61,8 +61,14 @@ yline(180);
 
 % Downsample the signal
 % Assuming Sps is your number of samples per symbol
-downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
-downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
+downsampledSig_Xpol = upfirdn(SIG.Xpol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
+downsampledSig_Xpol = downsampledSig_Xpol(PulseShaping.Span+1:  end-PulseShaping.Span);
+
+downsampledSig_Ypol = upfirdn(SIG.Ypol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
+downsampledSig_Ypol = downsampledSig_Ypol(PulseShaping.Span+1:  end-PulseShaping.Span);
+
+% downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
+% downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
 
 % Symbol Demapping
 % The specifics of this process depend on your modulation scheme
