@@ -61,14 +61,14 @@ yline(180);
 
 % Downsample the signal
 % Assuming Sps is your number of samples per symbol
-downsampledSig_Xpol = upfirdn(SIG.Xpol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
-downsampledSig_Xpol = downsampledSig_Xpol(PulseShaping.Span+1:  end-PulseShaping.Span);
+% downsampledSig_Xpol = upfirdn(SIG.Xpol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
+% downsampledSig_Xpol = downsampledSig_Xpol(PulseShaping.Span+1:  end-PulseShaping.Span);
+% 
+% downsampledSig_Ypol = upfirdn(SIG.Ypol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
+% downsampledSig_Ypol = downsampledSig_Ypol(PulseShaping.Span+1:  end-PulseShaping.Span);
 
-downsampledSig_Ypol = upfirdn(SIG.Ypol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
-downsampledSig_Ypol = downsampledSig_Ypol(PulseShaping.Span+1:  end-PulseShaping.Span);
-
-% downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
-% downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
+downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
+downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
 
 % Symbol Demapping
 % The specifics of this process depend on your modulation scheme
@@ -83,7 +83,7 @@ for i = 1:length(downsampledSig_Xpol)
     % This is a simplistic approach; real demapping would consider noise, etc.
     if real(downsampledSig_Xpol(i)) > 0
         if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [0 0];
+            demappedBits_Xpol(i, :) = [1 1];
         else
             demappedBits_Xpol(i, :) = [0 1];
         end
@@ -91,7 +91,7 @@ for i = 1:length(downsampledSig_Xpol)
         if imag(downsampledSig_Xpol(i)) > 0
             demappedBits_Xpol(i, :) = [1 0];
         else
-            demappedBits_Xpol(i, :) = [1 1];
+            demappedBits_Xpol(i, :) = [0 0];
         end
     end
 end
@@ -100,7 +100,7 @@ for i = 1:length(downsampledSig_Ypol)
     % This is a simplistic approach; real demapping would consider noise, etc.
     if real(downsampledSig_Ypol(i)) > 0
         if imag(downsampledSig_Ypol(i)) > 0
-            demappedBits_Ypol(i, :) = [0 0];
+            demappedBits_Ypol(i, :) = [1 1];
         else
             demappedBits_Ypol(i, :) = [0 1];
         end
@@ -108,7 +108,7 @@ for i = 1:length(downsampledSig_Ypol)
         if imag(downsampledSig_Ypol(i)) > 0
             demappedBits_Ypol(i, :) = [1 0];
         else
-            demappedBits_Ypol(i, :) = [1 1];
+            demappedBits_Ypol(i, :) = [0 0];
         end
     end
 end
