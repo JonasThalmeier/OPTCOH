@@ -19,9 +19,15 @@ srrcFilter = rcosdesign(PulseShaping.rho, PulseShaping.Span, SIG.Sps, 'sqrt');
 %rxSig_Ypol = filter(srrcFilter, 1, SIG.Ypol.txSig);
 
 delay = PulseShaping.Span * SIG.Sps / 2;
-rxSig_Xpol = filter(fft(PulseShaping.b_coeff), 1, SIG.Xpol.txSig);
+% 
+% rxSig_Xpol = filter(fft(PulseShaping.b_coeff), 1, SIG.Xpol.txSig);
+% %rxSig_Xpol = rxSig_Xpol(delay+1:end);
+% rxSig_Ypol = filter(fft(PulseShaping.b_coeff), 1, SIG.Ypol.txSig);
+
+rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
 %rxSig_Xpol = rxSig_Xpol(delay+1:end);
-rxSig_Ypol = filter(fft(PulseShaping.b_coeff), 1, SIG.Ypol.txSig);
+rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
+
 %rxSig_Ypol = rxSig_Ypol(delay+1:end);
 
 %-------------------------------------------------------------------------
@@ -70,12 +76,14 @@ yline(180);
 downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
 
+
 % Symbol Demapping
 % The specifics of this process depend on your modulation scheme
 % For QPSK as an example, you might have a demapping function like this:
 
 % This is a placeholder; actual implementation will vary based on modulation and needs
 demappedBits_Xpol = zeros(length(downsampledSig_Xpol),2); % Adjust size accordingly for bit pairs, etc.
+demappedSymb_Xpol = zeros(length(downsampledSig_Xpol),1);
 demappedBits_Ypol = zeros(length(downsampledSig_Ypol),2); % Adjust size accordingly for bit pairs, etc.
 
 % Assuming QPSK and not accounting for noise, just a direct mapping
@@ -83,15 +91,19 @@ for i = 1:length(downsampledSig_Xpol)
     % This is a simplistic approach; real demapping would consider noise, etc.
     if real(downsampledSig_Xpol(i)) > 0
         if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [1 1];
+            demappedBits_Xpol(i, :) = [1 0];
+            demappedSymb_Xpol(i) = 2;
         else
-            demappedBits_Xpol(i, :) = [0 1];
+            demappedBits_Xpol(i, :) = [1 1];
+            demappedSymb_Xpol(i) = 3;
         end
     else
         if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [1 0];
-        else
             demappedBits_Xpol(i, :) = [0 0];
+            demappedSymb_Xpol(i) = 0;
+        else
+            demappedBits_Xpol(i, :) = [0 1];
+            demappedSymb_Xpol(i) = 1;
         end
     end
 end
@@ -112,6 +124,9 @@ for i = 1:length(downsampledSig_Ypol)
         end
     end
 end
+
+indices = strfind(SIG.Xpol.decSymbols', demappedSymb_Xpol(200:208)');  % Find indices where pattern starts
+count = length(indices)  % Number of occurrences
 
 % Now demappedBits contains your recovered bitstream.
 
