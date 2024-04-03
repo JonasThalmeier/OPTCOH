@@ -91,19 +91,19 @@ for i = 1:length(downsampledSig_Xpol)
     % This is a simplistic approach; real demapping would consider noise, etc.
     if real(downsampledSig_Xpol(i)) > 0
         if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [1 0];
-            demappedSymb_Xpol(i) = 2;
-        else
             demappedBits_Xpol(i, :) = [1 1];
             demappedSymb_Xpol(i) = 3;
+        else
+            demappedBits_Xpol(i, :) = [1 0];
+            demappedSymb_Xpol(i) = 2;
         end
     else
         if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [0 0];
-            demappedSymb_Xpol(i) = 0;
-        else
             demappedBits_Xpol(i, :) = [0 1];
             demappedSymb_Xpol(i) = 1;
+        else
+            demappedBits_Xpol(i, :) = [0 0];
+            demappedSymb_Xpol(i) = 0;
         end
     end
 end
