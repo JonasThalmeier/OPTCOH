@@ -19,9 +19,9 @@ srrcFilter = rcosdesign(PulseShaping.rho, PulseShaping.Span, SIG.Sps, 'sqrt');
 %rxSig_Ypol = filter(srrcFilter, 1, SIG.Ypol.txSig);
 
 delay = PulseShaping.Span * SIG.Sps / 2;
-rxSig_Xpol = filter(PulseShaping.b_coeff, 1, SIG.Xpol.txSig);
+rxSig_Xpol = filter(fft(PulseShaping.b_coeff), 1, SIG.Xpol.txSig);
 %rxSig_Xpol = rxSig_Xpol(delay+1:end);
-rxSig_Ypol = filter(PulseShaping.b_coeff, 1, SIG.Ypol.txSig);
+rxSig_Ypol = filter(fft(PulseShaping.b_coeff), 1, SIG.Ypol.txSig);
 %rxSig_Ypol = rxSig_Ypol(delay+1:end);
 
 %-------------------------------------------------------------------------
