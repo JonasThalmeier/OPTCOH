@@ -4,33 +4,15 @@ clc;
 
 % Load the .mat file
 load('TXsequences/TXsequence_QPSK_64GBaud.mat');
-
 % txSig is now loaded along with other structures like SIG and PulseShaping
 
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
-
-% Create the SRRC filter (same as used for TX or initial filtering)
-srrcFilter = rcosdesign(PulseShaping.rho, PulseShaping.Span, SIG.Sps, 'sqrt');
-
-% Assume rxSig is your received SRRC filtered signal
-% Apply the matched filter (which is the same SRRC filter here)
-%rxSig_Xpol = filter(srrcFilter, 1, SIG.Xpol.txSig);
-%rxSig_Ypol = filter(srrcFilter, 1, SIG.Ypol.txSig);
-
-delay = PulseShaping.Span * SIG.Sps / 2;
-% 
-% rxSig_Xpol = filter(fft(PulseShaping.b_coeff), 1, SIG.Xpol.txSig);
-% %rxSig_Xpol = rxSig_Xpol(delay+1:end);
-% rxSig_Ypol = filter(fft(PulseShaping.b_coeff), 1, SIG.Ypol.txSig);
-
 rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
-%rxSig_Xpol = rxSig_Xpol(delay+1:end);
 rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
-%rxSig_Ypol = rxSig_Ypol(delay+1:end);
 
-%-------------------------------------------------------------------------
+%-------Plotting Phase and Amplitude of the filtered signal----------------
 % Select the first 30 elements
 n1 = 1;
 n2 = 200;
@@ -63,28 +45,20 @@ yline(180);
 
 
 
-%--------------------------------------------------------------------------
-
-% Downsample the signal
-% Assuming Sps is your number of samples per symbol
-% downsampledSig_Xpol = upfirdn(SIG.Xpol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
-% downsampledSig_Xpol = downsampledSig_Xpol(PulseShaping.Span+1:  end-PulseShaping.Span);
-% 
-% downsampledSig_Ypol = upfirdn(SIG.Ypol.txSig,PulseShaping.b_coeff,1,SIG.Sps);
-% downsampledSig_Ypol = downsampledSig_Ypol(PulseShaping.Span+1:  end-PulseShaping.Span);
+%----------------Downsample/Demapping the signal---------------------------
 
 downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
 
+% Plot constalation
+figure;
+scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".");
 
 % Symbol Demapping
-% The specifics of this process depend on your modulation scheme
-% For QPSK as an example, you might have a demapping function like this:
-
-% This is a placeholder; actual implementation will vary based on modulation and needs
 demappedBits_Xpol = zeros(length(downsampledSig_Xpol),2); % Adjust size accordingly for bit pairs, etc.
 demappedSymb_Xpol = zeros(length(downsampledSig_Xpol),1);
 demappedBits_Ypol = zeros(length(downsampledSig_Ypol),2); % Adjust size accordingly for bit pairs, etc.
+demappedSymb_Ypol = zeros(length(downsampledSig_Ypol),1);
 
 % Assuming QPSK and not accounting for noise, just a direct mapping
 for i = 1:length(downsampledSig_Xpol)
@@ -113,23 +87,30 @@ for i = 1:length(downsampledSig_Ypol)
     if real(downsampledSig_Ypol(i)) > 0
         if imag(downsampledSig_Ypol(i)) > 0
             demappedBits_Ypol(i, :) = [1 1];
+            demappedSymb_Ypol(i) = 3;
         else
             demappedBits_Ypol(i, :) = [0 1];
+            demappedSymb_Ypol(i) = 2;
         end
     else
         if imag(downsampledSig_Ypol(i)) > 0
             demappedBits_Ypol(i, :) = [1 0];
+            demappedSymb_Ypol(i) = 1;
         else
             demappedBits_Ypol(i, :) = [0 0];
+            demappedSymb_Ypol(i) = 0;
         end
     end
 end
 
+% Searching for repeating patters
 indices = strfind(SIG.Xpol.decSymbols', demappedSymb_Xpol(200:208)');  % Find indices where pattern starts
 count = length(indices)  % Number of occurrences
 
-% Now demappedBits contains your recovered bitstream.
+%% 
 
+
+%----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
 % Where N is the number of unique symbols and Npp is the number of repetitions
 
@@ -164,6 +145,8 @@ end
 % Now, consolidatedBits contains the 'averaged' bit decisions
 
 
+
+%-------------------------BER calculation----------------------------------
 
 if size(consolidatedBits_Xpol) ~= size(SIG.Xpol.bits)
     error('Arrays have different sizes.');
