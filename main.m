@@ -8,14 +8,14 @@ load('TXsequences/TXsequence_QPSK_64GBaud.mat');
 
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
-rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
-rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
+rxSig_Xpol = conv(SIG.Xpol.txSig, PulseShaping.b_coeff,  'full');
+rxSig_Ypol = conv(SIG.Ypol.txSig, PulseShaping.b_coeff, 'full');
 
 
 %-------Plotting Phase and Amplitude of the filtered signal----------------
 % Select the first 30 elements
-n1 = 1;
-n2 = 200;
+n1 = length(rxSig_Ypol)-200;
+n2 =  length(rxSig_Ypol);
 selectedElements = rxSig_Xpol(n1:n2);
 
 % Calculate amplitude and phase
@@ -46,13 +46,31 @@ yline(180);
 
 
 %----------------Downsample/Demapping the signal---------------------------
-
-downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
+SpS = 8;
+downsampledSig_Xpol = downsample(rxSig_Xpol,SpS);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
 
-% Plot constalation
-figure;
-scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".");
+downsampledSig_Xpol = downsampledSig_Xpol(16:65536+15);
+
+%downsampledSig_Xpol = downsampledSig_Xpol(9:end-8);
+
+cross1 = abs(xcorr(SIG.Xpol.txSymb,downsampledSig_Xpol));
+
+figure()
+plot(cross1);
+
+%downsampledSig_Xpol = downsampledSig_Xpol(65536:end);
+% 
+% cross2 = abs(xcorr(SIG.Xpol.txSymb,downsampledSig_Xpol));
+% 
+% 
+% figure()
+% plot(cross2);
+
+
+% % Plot constalation
+% figure;
+% scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".");
 
 % Symbol Demapping
 demappedBits_Xpol = zeros(length(downsampledSig_Xpol),2); % Adjust size accordingly for bit pairs, etc.
@@ -82,6 +100,29 @@ for i = 1:length(downsampledSig_Xpol)
     end
 end
 
+% for i = 1:length(downsampledSig_Xpol)
+%     if real(downsampledSig_Xpol(i)) > 0
+%         if imag(downsampledSig_Xpol(i)) > 0
+%             demappedBits_Xpol(i, :) = [1 0];
+%             demappedSymb_Xpol(i) = 2;
+%         else
+%             demappedBits_Xpol(i, :) = [1 1];
+%             demappedSymb_Xpol(i) = 3;
+%         end
+%     else
+%         if imag(downsampledSig_Xpol(i)) > 0
+%             demappedBits_Xpol(i, :) = [0 0];
+%             demappedSymb_Xpol(i) = 0;
+%         else
+%             demappedBits_Xpol(i, :) = [0 1];
+%             demappedSymb_Xpol(i) = 1;
+%         end
+%     end
+% end
+BER1 = sum(demappedSymb_Xpol(1:65536) ~= SIG.Xpol.txSymb) / 65536
+
+
+%%
 for i = 1:length(downsampledSig_Ypol)
     % This is a simplistic approach; real demapping would consider noise, etc.
     if real(downsampledSig_Ypol(i)) > 0
