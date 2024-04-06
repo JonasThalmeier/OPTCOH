@@ -49,8 +49,10 @@ rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
 downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
-downsampledSig_Xpol = downsampledSig_Xpol(16:end, :);
-downsampledSig_Ypol = downsampledSig_Ypol(16:end, :);
+% downsampledSig_Xpol = downsampledSig_Xpol(16:end, :);
+% downsampledSig_Ypol = downsampledSig_Ypol(16:end, :);
+downsampledSig_Xpol = downsampledSig_Xpol(16:end-15, :);
+downsampledSig_Ypol = downsampledSig_Ypol(16:end-15, :);
 
 % Plot constalation
 figure;
@@ -111,7 +113,9 @@ end
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
 % Where N is the number of unique symbols and Npp is the number of repetitions
 
-N = length(demappedBits_Xpol) / SIG.Npp;  % Calculate the number of unique symbols
+% N = length(demappedBits_Xpol) / SIG.Npp;  % Calculate the number of unique symbols
+N = length(SIG.Xpol.txSymb);  % Calculate the number of unique symbols
+
 consolidatedBits_Xpol = zeros(N, 2);
 consolidatedBits_Ypol = zeros(N, 2);
 for i = 1:N
