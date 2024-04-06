@@ -8,69 +8,53 @@ load('TXsequences/TXsequence_QPSK_64GBaud.mat');
 
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
-rxSig_Xpol = conv(SIG.Xpol.txSig, PulseShaping.b_coeff,  'full');
-rxSig_Ypol = conv(SIG.Ypol.txSig, PulseShaping.b_coeff, 'full');
+rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
+rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
 
-%-------Plotting Phase and Amplitude of the filtered signal----------------
-% Select the first 30 elements
-n1 = length(rxSig_Ypol)-200;
-n2 =  length(rxSig_Ypol);
-selectedElements = rxSig_Xpol(n1:n2);
-
-% Calculate amplitude and phase
-amplitude = abs(selectedElements);
-phase = angle(selectedElements)*180/pi;
-
-% Create a new figure
-figure;
-
-% Plot amplitude
-subplot(2, 1, 1);  % This creates a subplot with 2 rows, 1 column, and selects the 1st subplot.
-plot(n1:n2, amplitude, '-o');
-title('Amplitude of the First 30 Elements of rxSig_Xpol');
-xlabel('Element Index');
-ylabel('Amplitude');
-
-% Plot phase
-subplot(2, 1, 2);  % This selects the 2nd subplot in the same figure.
-plot(n1:n2, phase, '-x');
-title('Phase of the First 30 Elements of rxSig_Xpol');
-xlabel('Element Index');
-ylabel('Phase (deg)');
-yline(-180);
-yline(-90);
-yline(90);
-yline(180);
+% %-------Plotting Phase and Amplitude of the filtered signal----------------
+% % Select the first 30 elements
+% n1 = 1;
+% n2 = 200;
+% selectedElements = rxSig_Xpol(n1:n2);
+% 
+% % Calculate amplitude and phase
+% amplitude = abs(selectedElements);
+% phase = angle(selectedElements)*180/pi;
+% 
+% % Create a new figure
+% figure;
+% 
+% % Plot amplitude
+% subplot(2, 1, 1);  % This creates a subplot with 2 rows, 1 column, and selects the 1st subplot.
+% plot(n1:n2, amplitude, '-o');
+% title('Amplitude of the First 30 Elements of rxSig_Xpol');
+% xlabel('Element Index');
+% ylabel('Amplitude');
+% 
+% % Plot phase
+% subplot(2, 1, 2);  % This selects the 2nd subplot in the same figure.
+% plot(n1:n2, phase, '-x');
+% title('Phase of the First 30 Elements of rxSig_Xpol');
+% xlabel('Element Index');
+% ylabel('Phase (deg)');
+% yline(-180);
+% yline(-90);
+% yline(90);
+% yline(180);
 
 
 
 %----------------Downsample/Demapping the signal---------------------------
-SpS = 8;
-downsampledSig_Xpol = downsample(rxSig_Xpol,SpS);
+
+downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
+downsampledSig_Xpol = downsampledSig_Xpol(16:end, :);
+downsampledSig_Ypol = downsampledSig_Ypol(16:end, :);
 
-downsampledSig_Xpol = downsampledSig_Xpol(16:65536+15);
-
-%downsampledSig_Xpol = downsampledSig_Xpol(9:end-8);
-
-cross1 = abs(xcorr(SIG.Xpol.txSymb,downsampledSig_Xpol));
-
-figure()
-plot(cross1);
-
-%downsampledSig_Xpol = downsampledSig_Xpol(65536:end);
-% 
-% cross2 = abs(xcorr(SIG.Xpol.txSymb,downsampledSig_Xpol));
-% 
-% 
-% figure()
-% plot(cross2);
-
-
-% % Plot constalation
-% figure;
-% scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".");
+% Plot constalation
+figure;
+scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".", "k");
 
 % Symbol Demapping
 demappedBits_Xpol = zeros(length(downsampledSig_Xpol),2); % Adjust size accordingly for bit pairs, etc.
@@ -83,72 +67,44 @@ for i = 1:length(downsampledSig_Xpol)
     % This is a simplistic approach; real demapping would consider noise, etc.
     if real(downsampledSig_Xpol(i)) > 0
         if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [1 1];
-            demappedSymb_Xpol(i) = 3;
-        else
             demappedBits_Xpol(i, :) = [1 0];
             demappedSymb_Xpol(i) = 2;
+        else
+            demappedBits_Xpol(i, :) = [1 1];
+            demappedSymb_Xpol(i) = 3;
         end
     else
         if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [0 1];
-            demappedSymb_Xpol(i) = 1;
-        else
             demappedBits_Xpol(i, :) = [0 0];
             demappedSymb_Xpol(i) = 0;
+        else
+            demappedBits_Xpol(i, :) = [0 1];
+            demappedSymb_Xpol(i) = 1;
         end
     end
 end
 
-% for i = 1:length(downsampledSig_Xpol)
-%     if real(downsampledSig_Xpol(i)) > 0
-%         if imag(downsampledSig_Xpol(i)) > 0
-%             demappedBits_Xpol(i, :) = [1 0];
-%             demappedSymb_Xpol(i) = 2;
-%         else
-%             demappedBits_Xpol(i, :) = [1 1];
-%             demappedSymb_Xpol(i) = 3;
-%         end
-%     else
-%         if imag(downsampledSig_Xpol(i)) > 0
-%             demappedBits_Xpol(i, :) = [0 0];
-%             demappedSymb_Xpol(i) = 0;
-%         else
-%             demappedBits_Xpol(i, :) = [0 1];
-%             demappedSymb_Xpol(i) = 1;
-%         end
-%     end
-% end
-BER1 = sum(demappedSymb_Xpol(1:65536) == SIG.Xpol.txSymb) / 65536
-
-
-%%
 for i = 1:length(downsampledSig_Ypol)
     % This is a simplistic approach; real demapping would consider noise, etc.
     if real(downsampledSig_Ypol(i)) > 0
         if imag(downsampledSig_Ypol(i)) > 0
+            demappedBits_Ypol(i, :) = [1 0];
+            demappedSymb_Ypol(i) = 2;
+        else
             demappedBits_Ypol(i, :) = [1 1];
             demappedSymb_Ypol(i) = 3;
-        else
-            demappedBits_Ypol(i, :) = [0 1];
-            demappedSymb_Ypol(i) = 2;
         end
     else
         if imag(downsampledSig_Ypol(i)) > 0
-            demappedBits_Ypol(i, :) = [1 0];
-            demappedSymb_Ypol(i) = 1;
-        else
             demappedBits_Ypol(i, :) = [0 0];
             demappedSymb_Ypol(i) = 0;
+        else
+            demappedBits_Ypol(i, :) = [0 1];
+            demappedSymb_Ypol(i) = 1;
         end
     end
 end
 
-% Searching for repeating patters
-indices = strfind(SIG.Xpol.decSymbols', demappedSymb_Xpol(200:208)');  % Find indices where pattern starts
-count = length(indices)  % Number of occurrences
-
-%% 
 
 
 %----------------Majority voting over the repeated symbols-----------------
@@ -156,33 +112,12 @@ count = length(indices)  % Number of occurrences
 % Where N is the number of unique symbols and Npp is the number of repetitions
 
 N = length(demappedBits_Xpol) / SIG.Npp;  % Calculate the number of unique symbols
-consolidatedBits_Xpol = zeros(N, 2);  % Initialize the array for consolidated bits
+consolidatedBits_Xpol = zeros(N, 2);
+consolidatedBits_Ypol = zeros(N, 2);
 for i = 1:N
-    % Extract bits corresponding to the same symbol across all repetitions
-    symbolBits = reshape(demappedBits_Xpol((i-1)*SIG.Npp + 1:i*SIG.Npp, :), [], 2, SIG.Npp);
-    
-    % For binary data, decide each bit based on the majority across repetitions
-    % This example uses a simple majority, which is straightforward for binary outcomes
-    for j = 1:2  % Assuming binary phase shift keying for simplification
-        % Count the occurrences of '1's and '0's and decide based on majority
-        bitMajority = mode(symbolBits(:, j, :), 3);
-        consolidatedBits_Xpol(i, j) = bitMajority;
-    end
+    consolidatedBits_Xpol(i, :) = mode(demappedBits_Xpol(i:N:end,:),1);
+    consolidatedBits_Ypol(i, :) = mode(demappedBits_Ypol(i:N:end,:),1);
 end
-consolidatedBits_Ypol = zeros(N, 2);  % Initialize the array for consolidated bits
-for i = 1:N
-    % Extract bits corresponding to the same symbol across all repetitions
-    symbolBits = reshape(demappedBits_Ypol((i-1)*SIG.Npp + 1:i*SIG.Npp, :), [], 2, SIG.Npp);
-    
-    % For binary data, decide each bit based on the majority across repetitions
-    % This example uses a simple majority, which is straightforward for binary outcomes
-    for j = 1:2  % Assuming binary phase shift keying for simplification
-        % Count the occurrences of '1's and '0's and decide based on majority
-        bitMajority = mode(symbolBits(:, j, :), 3);
-        consolidatedBits_Ypol(i, j) = bitMajority;
-    end
-end
-
 % Now, consolidatedBits contains the 'averaged' bit decisions
 
 
