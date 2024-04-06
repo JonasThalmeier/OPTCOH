@@ -119,7 +119,7 @@ end
 %         end
 %     end
 % end
-BER1 = sum(demappedSymb_Xpol(1:65536) ~= SIG.Xpol.txSymb) / 65536
+BER1 = sum(demappedSymb_Xpol(1:65536) == SIG.Xpol.txSymb) / 65536
 
 
 %%
