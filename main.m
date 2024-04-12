@@ -1,9 +1,11 @@
-clear all;
+clear;
 close all;
 clc;
 
 % Load the .mat file
-load('TXsequences/TXsequence_QPSK_64GBaud.mat');
+%load('TXsequences/TXsequence_QPSK_64GBaud.mat');
+load('TXsequences/TXsequence_16QAM_64GBaud.mat');
+
 % txSig is now loaded along with other structures like SIG and PulseShaping
 
 % Apply matched filtering
@@ -43,71 +45,26 @@ rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 % yline(90);
 % yline(180);
 
-
-
 %----------------Downsample/Demapping the signal---------------------------
 
 downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps);
-% downsampledSig_Xpol = downsampledSig_Xpol(16:end, :);
-% downsampledSig_Ypol = downsampledSig_Ypol(16:end, :);
-downsampledSig_Xpol = downsampledSig_Xpol(16:end-15, :);
-downsampledSig_Ypol = downsampledSig_Ypol(16:end-15, :);
 
-% Plot constalation
+[c,lags] = xcorr( downsampledSig_Xpol(1:length(SIG.Xpol.txSymb)),SIG.Xpol.txSymb);
+stem(lags,c)
+
+[M,I] = max(c);
+
+downsampledSig_Xpol = downsampledSig_Xpol(lags(I)+1:end-lags(I), :);
+downsampledSig_Ypol = downsampledSig_Ypol(lags(I)+1:end-lags(I), :);
+
+% Plot constellation
 figure;
 scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".", "k");
 
-% Symbol Demapping
-demappedBits_Xpol = zeros(length(downsampledSig_Xpol),2); % Adjust size accordingly for bit pairs, etc.
-demappedSymb_Xpol = zeros(length(downsampledSig_Xpol),1);
-demappedBits_Ypol = zeros(length(downsampledSig_Ypol),2); % Adjust size accordingly for bit pairs, etc.
-demappedSymb_Ypol = zeros(length(downsampledSig_Ypol),1);
-
-% Assuming QPSK and not accounting for noise, just a direct mapping
-for i = 1:length(downsampledSig_Xpol)
-    % This is a simplistic approach; real demapping would consider noise, etc.
-    if real(downsampledSig_Xpol(i)) > 0
-        if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [1 0];
-            demappedSymb_Xpol(i) = 2;
-        else
-            demappedBits_Xpol(i, :) = [1 1];
-            demappedSymb_Xpol(i) = 3;
-        end
-    else
-        if imag(downsampledSig_Xpol(i)) > 0
-            demappedBits_Xpol(i, :) = [0 0];
-            demappedSymb_Xpol(i) = 0;
-        else
-            demappedBits_Xpol(i, :) = [0 1];
-            demappedSymb_Xpol(i) = 1;
-        end
-    end
-end
-
-for i = 1:length(downsampledSig_Ypol)
-    % This is a simplistic approach; real demapping would consider noise, etc.
-    if real(downsampledSig_Ypol(i)) > 0
-        if imag(downsampledSig_Ypol(i)) > 0
-            demappedBits_Ypol(i, :) = [1 0];
-            demappedSymb_Ypol(i) = 2;
-        else
-            demappedBits_Ypol(i, :) = [1 1];
-            demappedSymb_Ypol(i) = 3;
-        end
-    else
-        if imag(downsampledSig_Ypol(i)) > 0
-            demappedBits_Ypol(i, :) = [0 0];
-            demappedSymb_Ypol(i) = 0;
-        else
-            demappedBits_Ypol(i, :) = [0 1];
-            demappedSymb_Ypol(i) = 1;
-        end
-    end
-end
-
-
+%[demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
+[demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
+%%
 
 %----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
