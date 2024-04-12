@@ -4,7 +4,7 @@ clc;
 
 % Load the .mat file
 %load('TXsequences/TXsequence_QPSK_64GBaud.mat');
-load('TXsequences/TXsequence_16QAM_64GBaud.mat');
+load('C:\Users\utente\Desktop\OPTCOH PROJECT\Codes\TXsequences/TXsequence_16QAM_64GBaud.mat');
 
 % txSig is now loaded along with other structures like SIG and PulseShaping
 
@@ -61,6 +61,7 @@ downsampledSig_Ypol = downsampledSig_Ypol(lags(I)+1:end-lags(I), :);
 % Plot constellation
 figure;
 scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".", "k");
+grid on;
 
 %[demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
