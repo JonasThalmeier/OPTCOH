@@ -3,11 +3,10 @@ close all;
 clc;
 
 % Load the .mat file
-QPSK = load('C:\Users\utente\Desktop\OPTCOH PROJECT\Codes\TXsequences/TXsequence_QPSK_64GBaud.mat');
-QAM16 = load('C:\Users\utente\Desktop\OPTCOH PROJECT\Codes\TXsequences/TXsequence_16QAM_64GBaud.mat');
+load('TXsequences/TXsequence_16QAM_64GBaud.mat');
 
 % Variables
-
+modulation = 'QAM16';
 SpS = 8;
 
 % txSig is now loaded along with other structures like SIG and PulseShaping
@@ -15,19 +14,14 @@ SpS = 8;
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
 
-modulation = {'QPSK', 'QAM16'};
-r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-fprintf('The chosen modluation is: ');
-chosen_modluation = modulation(r)  % Extract the modulation for this random number.
+% modulationArray = {'QPSK', 'QAM16'};
+% r = randi([1, 2], 1); % Get a 1 or 2 randomly.
+% fprintf('The chosen modluation is: ');
+% modulation = modulationArray(r)  % Extract the modulation for this random number.
 
-if (isequal(chosen_modluation, 'QPSK'))
-    rxSig_Xpol = conv(QPSK.PulseShaping.b_coeff, QPSK.SIG.Xpol.txSig);
-    rxSig_Ypol = conv(QPSK.PulseShaping.b_coeff, QPSK.SIG.Ypol.txSig);
-else
-    rxSig_Xpol = conv(QAM16.PulseShaping.b_coeff, QAM16.SIG.Xpol.txSig);
-    rxSig_Ypol = conv(QAM16.PulseShaping.b_coeff, QAM16.SIG.Ypol.txSig);
-end
 
+rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
+rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
 % %-------Plotting Phase and Amplitude of the filtered signal----------------
 % % Select the first 30 elements
@@ -62,10 +56,10 @@ end
 
 %----------------Downsample/Demapping the signal---------------------------
 
-downsampledSig_Xpol = downsample(rxSig_Xpol, SpS);
-downsampledSig_Ypol = downsample(rxSig_Ypol, SpS);
+downsampledSig_Xpol = own_downsample(rxSig_Xpol, SIG.Sps, SIG.Npp);
+downsampledSig_Ypol = own_downsample(rxSig_Ypol, SIG.Sps, SIG.Npp);
 
-[c,lags] = xcorr( downsampledSig_Xpol(1:length(SIG.Xpol.txSymb)),chosen_modluation.SIG.Xpol.txSymb);
+[c,lags] = xcorr(downsampledSig_Xpol(1:length(SIG.Xpol.txSymb)),SIG.Xpol.txSymb);
 stem(lags,c)
 
 [M,I] = max(c);
