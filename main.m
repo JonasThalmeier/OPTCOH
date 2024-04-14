@@ -10,8 +10,6 @@ MODULATIONS = [QPSK,QAM16];
 
 % Parameters
 
-SpS = 8;
-
 % txSig is now loaded along with other structures like SIG and PulseShaping
 
 % Apply matched filtering
@@ -21,8 +19,13 @@ modulation = ["QPSK" "16-QAM"];
 r = randi([1, 2], 1); % Get a 1 or 2 randomly.
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 
-rxSig_Xpol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Xpol.txSig);
-rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.txSig);
+%------------------Fiber Simulation----------------------------------------
+% [Xpol_dc, Ypol_dc] = cd_sim(MODULATIONS(r).SIG.Xpol.txSig, MODULATIONS(r).SIG.Ypol.txSig, MODULATIONS(r).SIG.Sps, MODULATIONS(r).SIG.symbolRate, 17, .001, 1550);
+Xpol_dc = MODULATIONS(r).SIG.Xpol.txSig;
+Ypol_dc = MODULATIONS(r).SIG.Ypol.txSig;
+
+rxSig_Xpol = conv(MODULATIONS(r).PulseShaping.b_coeff, Xpol_dc);
+rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, Ypol_dc);
 
 % %-------Plotting Phase and Amplitude of the filtered signal----------------
 % % Select the first 30 elements
@@ -57,50 +60,42 @@ rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.t
 
 %----------------Downsample/Demapping the signal---------------------------
 
-downsampledSig_Xpol = downsample(rxSig_Xpol, SpS);
-downsampledSig_Ypol = downsample(rxSig_Ypol, SpS);
+downsampledSig_Xpol = downsample(rxSig_Xpol, MODULATIONS(r).SIG.Sps/2);
+downsampledSig_Ypol = downsample(rxSig_Ypol, MODULATIONS(r).SIG.Sps/2);
 
-[c,lags] = xcorr( downsampledSig_Xpol(1:length(MODULATIONS(r).SIG.Xpol.txSymb)), MODULATIONS(r).SIG.Xpol.txSymb);
-stem(lags,real(c))
+[c,lags] = xcorr(downsampledSig_Xpol(2:2:length(MODULATIONS(r).SIG.Xpol.txSymb)), MODULATIONS(r).SIG.Xpol.txSymb);
+stem(lags,real(c));
 
 [M,I] = max(c);
 
-downsampledSig_Xpol = downsampledSig_Xpol(lags(I)+1:end-lags(I), :);
-downsampledSig_Ypol = downsampledSig_Ypol(lags(I)+1:end-lags(I), :);
+downsampledSig_Xpol = downsampledSig_Xpol(2*(lags(I)):end-2*(lags(I)), :);
+downsampledSig_Ypol = downsampledSig_Ypol(2*(lags(I)):end-2*(lags(I)), :);
 
-downsampledSig_Xpol = downsampledSig_Xpol/abs(real(median(downsampledSig_Xpol))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
-downsampledSig_Ypol = downsampledSig_Ypol/abs(real(median(downsampledSig_Ypol)));
+downsampledSig_Xpol = downsampledSig_Xpol/abs(real(median(downsampledSig_Xpol(2:2:end)))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
+downsampledSig_Ypol = downsampledSig_Ypol/abs(real(median(downsampledSig_Ypol(2:2:end))));
 
 % Plot constellation
 figure;
-scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".", "k");
+scatter(real(downsampledSig_Xpol(2:2:end)), imag(downsampledSig_Xpol(2:2:end)), ".", "k");
 grid on;
 
 max_energy = max(abs(downsampledSig_Xpol));
 
 if max_energy < 2
     fprintf('The tracked moduluation is: QPSK\n');
+    M = 2;
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 else
     fprintf('The tracked moduluation is: 16-QAM\n');
+    M = 4;
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 end
 
 %----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
 % Where N is the number of unique symbols and Npp is the number of repetitions
-
-% N = length(demappedBits_Xpol) / SIG.Npp;  % Calculate the number of unique symbols
 N = length(MODULATIONS(r).SIG.Xpol.txSymb);  % Calculate the number of unique symbols
-
-consolidatedBits_Xpol = zeros(N, size(MODULATIONS(r).SIG.Xpol.bits,2));
-consolidatedBits_Ypol = zeros(N, size(MODULATIONS(r).SIG.Xpol.bits,2));
-
-for i = 1:N
-    consolidatedBits_Xpol(i, :) = mode(demappedBits_Xpol(i:N:end,:),1);
-    consolidatedBits_Ypol(i, :) = mode(demappedBits_Ypol(i:N:end,:),1);
-end
-% Now, consolidatedBits contains the 'averaged' bit decisions
+[consolidatedBits_Xpol,consolidatedBits_Ypol] = voting(N, M, demappedBits_Xpol, demappedBits_Ypol);
 
 
 

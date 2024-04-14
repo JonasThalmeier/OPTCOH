@@ -1,4 +1,6 @@
 function [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol)
+downsampledSig_Xpol = downsampledSig_Xpol(2:2:end); %downsample to 1SpS
+downsampledSig_Ypol = downsampledSig_Ypol(2:2:end);
 
 % Symbol Demapping
 demappedBits_Xpol = zeros(length(downsampledSig_Xpol),2); % Adjust size accordingly for bit pairs, etc.
