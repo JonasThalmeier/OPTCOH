@@ -21,11 +21,8 @@ modulation = ["QPSK" "16-QAM"];
 r = randi([1, 2], 1); % Get a 1 or 2 randomly.
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 
-rxSig_Xpol = conv(QPSK.PulseShaping.b_coeff, MODULATIONS(r).SIG.Xpol.txSig);
-rxSig_Ypol = conv(QPSK.PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.txSig);
-
-rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
-rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
+rxSig_Xpol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Xpol.txSig);
+rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.txSig);
 
 % %-------Plotting Phase and Amplitude of the filtered signal----------------
 % % Select the first 30 elements
@@ -60,8 +57,8 @@ rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
 %----------------Downsample/Demapping the signal---------------------------
 
-downsampledSig_Xpol = own_downsample(rxSig_Xpol, SIG.Sps, SIG.Npp);
-downsampledSig_Ypol = own_downsample(rxSig_Ypol, SIG.Sps, SIG.Npp);
+downsampledSig_Xpol = downsample(rxSig_Xpol, SpS);
+downsampledSig_Ypol = downsample(rxSig_Ypol, SpS);
 
 [c,lags] = xcorr( downsampledSig_Xpol(1:length(MODULATIONS(r).SIG.Xpol.txSymb)), MODULATIONS(r).SIG.Xpol.txSymb);
 stem(lags,real(c))
