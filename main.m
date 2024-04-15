@@ -3,8 +3,8 @@ close all;
 clc;
 
 % Load the .mat file
-load('TXsequences/TXsequence_QPSK_64GBaud.mat');
-%load('TXsequences/TXsequence_16QAM_64GBaud.mat');
+% load('TXsequences/TXsequence_QPSK_64GBaud.mat');
+load('TXsequences/TXsequence_16QAM_64GBaud.mat');
 
 if size(SIG.Xpol.bits, 2) == 2
     MODULATIONS = 'QPSK';
@@ -89,7 +89,7 @@ figure;
 scatter(real(downsampledSig_Xpol(2:2:end)), imag(downsampledSig_Xpol(2:2:end)), ".", "k");
 grid on;
 
-% max_energy = max(abs(downsampledSig_Xpol));
+% max_energy = max(abs(downsampledSig_Xpol(2:2:end)));
 % 
 % if max_energy < 2
 %     fprintf('The tracked moduluation is: QPSK\n');
@@ -101,12 +101,9 @@ grid on;
 %     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 % end
 
-if MODULATIONS == 'QPSK'
-    M =2;
-else
-    M = 4;
-end
-if M == 2
+[counts, binEdges] = histcounts(angle(downsampledSig_Xpol(2:2:end)), 12, 'Normalization', 'probability');
+%histogram(angle(downsampledSig_Xpol(2:2:end)), 12, 'Normalization', 'probability');
+if max(counts) > .17
     fprintf('The tracked moduluation is: QPSK\n');
     M = 2;
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
@@ -115,6 +112,8 @@ else
     M = 4;
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 end
+
+
 %----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
 % Where N is the number of unique symbols and Npp is the number of repetitions

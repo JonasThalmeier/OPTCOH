@@ -121,6 +121,14 @@ else
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 end
 
+% [idx,C1] = kmeans([real(downsampledSig_Xpol(1000:2000)) imag(downsampledSig_Xpol(1000:2000))], 16);
+% [idx,C2] = kmeans(C1,4);
+% idx = sortrows([idx C1], [1 2]);
+% dist = 0;
+% for k=1:4:13
+%     dist = dist+sum(pdist(idx(k:3+k,2:end), 'euclidean'))/4;
+% end
+
 
 %----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
