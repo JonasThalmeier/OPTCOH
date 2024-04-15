@@ -3,10 +3,14 @@ close all;
 clc;
 
 % Load the .mat file
-QPSK = load('TXsequences/TXsequence_QPSK_64GBaud.mat');
-QAM16 = load('TXsequences/TXsequence_16QAM_64GBaud.mat');
+load('TXsequences/TXsequence_QPSK_64GBaud.mat');
+%load('TXsequences/TXsequence_16QAM_64GBaud.mat');
 
-MODULATIONS = [QPSK,QAM16];
+if size(SIG.Xpol.bits, 2) == 2
+    MODULATIONS = 'QPSK';
+else
+    MODULATIONS = 'QAM16';
+end
 
 % Parameters
 
@@ -15,17 +19,21 @@ MODULATIONS = [QPSK,QAM16];
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
 
-modulation = ["QPSK" "16-QAM"];
-r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-fprintf('The transmitted moduluation is: %s\n', modulation(r));
+% modulation = ["QPSK" "16-QAM"];
+% r = randi([1, 2], 1); % Get a 1 or 2 randomly.
+% fprintf('The transmitted moduluation is: %s\n', modulation(r));
 
 %------------------Fiber Simulation----------------------------------------
-% [Xpol_dc, Ypol_dc] = cd_sim(MODULATIONS(r).SIG.Xpol.txSig, MODULATIONS(r).SIG.Ypol.txSig, MODULATIONS(r).SIG.Sps, MODULATIONS(r).SIG.symbolRate, 17, .001, 1550);
-Xpol_dc = MODULATIONS(r).SIG.Xpol.txSig;
-Ypol_dc = MODULATIONS(r).SIG.Ypol.txSig;
+% [Xpol_dc, Ypol_dc] = cd_sim(SIG.Xpol.txSig, SIG.Ypol.txSig, SIG.Sps, SIG.symbolRate, 17, .001, 1550);
+Xpol = SIG.Xpol.txSig;
+Ypol = SIG.Ypol.txSig;
 
-rxSig_Xpol = conv(MODULATIONS(r).PulseShaping.b_coeff, Xpol_dc);
-rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, Ypol_dc);
+r = randi(8,1);
+Xpol = Xpol(r:end);
+Ypol = Ypol(r:end);
+
+rxSig_Xpol = conv(PulseShaping.b_coeff, Xpol);
+rxSig_Ypol = conv(PulseShaping.b_coeff, Ypol);
 
 % %-------Plotting Phase and Amplitude of the filtered signal----------------
 % % Select the first 30 elements
@@ -60,16 +68,18 @@ rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, Ypol_dc);
 
 %----------------Downsample/Demapping the signal---------------------------
 
-downsampledSig_Xpol = downsample(rxSig_Xpol, MODULATIONS(r).SIG.Sps/2);
-downsampledSig_Ypol = downsample(rxSig_Ypol, MODULATIONS(r).SIG.Sps/2);
+downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps/2);
+downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps/2);
 
-[c,lags] = xcorr(downsampledSig_Xpol(2:2:length(MODULATIONS(r).SIG.Xpol.txSymb)), MODULATIONS(r).SIG.Xpol.txSymb);
+[downsampledSig_Xpol,downsampledSig_Ypol] = samp_phase_recovery(downsampledSig_Xpol,downsampledSig_Ypol,SIG.Sps);
+
+[c,lags] = xcorr(downsampledSig_Xpol(2:2:length(SIG.Xpol.txSymb)), SIG.Xpol.txSymb);
 stem(lags,real(c));
 
 [M,I] = max(c);
 
-downsampledSig_Xpol = downsampledSig_Xpol(2*(lags(I)):end-2*(lags(I)), :);
-downsampledSig_Ypol = downsampledSig_Ypol(2*(lags(I)):end-2*(lags(I)), :);
+downsampledSig_Xpol = downsampledSig_Xpol(2*(lags(I)+1):end-2*(lags(I)), :);
+downsampledSig_Ypol = downsampledSig_Ypol(2*(lags(I)+1):end-2*(lags(I)), :);
 
 downsampledSig_Xpol = downsampledSig_Xpol/abs(real(median(downsampledSig_Xpol(2:2:end)))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
 downsampledSig_Ypol = downsampledSig_Ypol/abs(real(median(downsampledSig_Ypol(2:2:end))));
@@ -79,9 +89,24 @@ figure;
 scatter(real(downsampledSig_Xpol(2:2:end)), imag(downsampledSig_Xpol(2:2:end)), ".", "k");
 grid on;
 
-max_energy = max(abs(downsampledSig_Xpol));
+% max_energy = max(abs(downsampledSig_Xpol));
+% 
+% if max_energy < 2
+%     fprintf('The tracked moduluation is: QPSK\n');
+%     M = 2;
+%     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
+% else
+%     fprintf('The tracked moduluation is: 16-QAM\n');
+%     M = 4;
+%     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
+% end
 
-if max_energy < 2
+if MODULATIONS == 'QPSK'
+    M =2;
+else
+    M = 4;
+end
+if M == 2
     fprintf('The tracked moduluation is: QPSK\n');
     M = 2;
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
@@ -90,22 +115,21 @@ else
     M = 4;
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 end
-
 %----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
 % Where N is the number of unique symbols and Npp is the number of repetitions
-N = length(MODULATIONS(r).SIG.Xpol.txSymb);  % Calculate the number of unique symbols
+N = length(SIG.Xpol.txSymb);  % Calculate the number of unique symbols
 [consolidatedBits_Xpol,consolidatedBits_Ypol] = voting(N, M, demappedBits_Xpol, demappedBits_Ypol);
 
 
 
 %-------------------------BER calculation----------------------------------
 
-if size(consolidatedBits_Xpol) ~= size(MODULATIONS(r).SIG.Xpol.bits)
+if size(consolidatedBits_Xpol) ~= size(SIG.Xpol.bits)
     error('Arrays have different sizes.');
 else
     % Calculate the number of bit errors
-    bitErrors_Xpol = sum(sum(consolidatedBits_Xpol ~= MODULATIONS(r).SIG.Xpol.bits));
+    bitErrors_Xpol = sum(sum(consolidatedBits_Xpol ~= SIG.Xpol.bits));
 
     % Calculate the total number of bits
     totalBits_Xpol = numel(consolidatedBits_Xpol);
@@ -119,11 +143,11 @@ else
     fprintf('Bit Error Rate (BER) for X polariztion: %f\n', BER_Xpol);
 end
 
-if size(consolidatedBits_Ypol) ~= size(MODULATIONS(r).SIG.Ypol.bits)
+if size(consolidatedBits_Ypol) ~= size(SIG.Ypol.bits)
     error('Arrays have different sizes.');
 else
     % Calculate the number of bit errors
-    bitErrors_Ypol = sum(sum(consolidatedBits_Ypol ~= MODULATIONS(r).SIG.Ypol.bits));
+    bitErrors_Ypol = sum(sum(consolidatedBits_Ypol ~= SIG.Ypol.bits));
 
     % Calculate the total number of bits
     totalBits_Ypol = numel(consolidatedBits_Ypol);
