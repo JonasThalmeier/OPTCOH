@@ -3,8 +3,8 @@ close all;
 clc;
 
 % Load the .mat file
-% load('TXsequences/TXsequence_QPSK_64GBaud.mat');
-load('TXsequences/TXsequence_16QAM_64GBaud.mat');
+load('TXsequences/TXsequence_QPSK_64GBaud.mat');
+% load('TXsequences/TXsequence_16QAM_64GBaud.mat');
 
 if size(SIG.Xpol.bits, 2) == 2
     MODULATIONS = 'QPSK';
@@ -28,9 +28,14 @@ end
 Xpol = SIG.Xpol.txSig;
 Ypol = SIG.Ypol.txSig;
 
+% Shift sampling time
 r = randi(8,1);
 Xpol = Xpol(r:end);
 Ypol = Ypol(r:end);
+
+% Shift phase
+Xpol = Xpol.*exp(1i*pi*randi(100,1)/50);
+Ypol = Ypol.*exp(1i*pi*randi(100,1)/50);
 
 rxSig_Xpol = conv(PulseShaping.b_coeff, Xpol);
 rxSig_Ypol = conv(PulseShaping.b_coeff, Ypol);
@@ -71,14 +76,22 @@ rxSig_Ypol = conv(PulseShaping.b_coeff, Ypol);
 downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps/2);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps/2);
 
+% Recoverig the right sampling position
 [downsampledSig_Xpol,downsampledSig_Ypol] = samp_phase_recovery(downsampledSig_Xpol,downsampledSig_Ypol,SIG.Sps);
 
+% Recovering the the phase shift
+downsampledSig_Xpol = phase_recovery(downsampledSig_Xpol, SIG.Xpol.txSymb);
+downsampledSig_Ypol = phase_recovery(downsampledSig_Ypol, SIG.Ypol.txSymb);
+
+% Finding and removing the transient/start of sequence
 [c,lags] = xcorr(downsampledSig_Xpol(2:2:length(SIG.Xpol.txSymb)), SIG.Xpol.txSymb);
 stem(lags,real(c));
-
 [M,I] = max(c);
-
 downsampledSig_Xpol = downsampledSig_Xpol(2*(lags(I)+1):end-2*(lags(I)), :);
+
+[c,lags] = xcorr(downsampledSig_Ypol(2:2:length(SIG.Ypol.txSymb)), SIG.Ypol.txSymb);
+stem(lags,real(c));
+[M,I] = max(c);
 downsampledSig_Ypol = downsampledSig_Ypol(2*(lags(I)+1):end-2*(lags(I)), :);
 
 downsampledSig_Xpol = downsampledSig_Xpol/abs(real(median(downsampledSig_Xpol(2:2:end)))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
