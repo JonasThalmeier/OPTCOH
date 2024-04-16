@@ -77,7 +77,7 @@ downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps/2);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps/2);
 
 % Recoverig the right sampling position
-[downsampledSig_Xpol,downsampledSig_Ypol] = samp_phase_recovery(downsampledSig_Xpol,downsampledSig_Ypol,SIG.Sps);
+[downsampledSig_Xpol,downsampledSig_Ypol] = samp_time_recovery(downsampledSig_Xpol,downsampledSig_Ypol,SIG.Sps);
 
 % Recovering the the phase shift
 downsampledSig_Xpol = phase_recovery(downsampledSig_Xpol, SIG.Xpol.txSymb);

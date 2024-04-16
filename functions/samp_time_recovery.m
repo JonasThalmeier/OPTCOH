@@ -1,4 +1,4 @@
-function [downsampledSig_Xpol,downsampledSig_Ypol] = samp_phase_recovery(Xpol,Ypol,Sps)
+function [downsampledSig_Xpol,downsampledSig_Ypol] = samp_time_recovery(Xpol,Ypol,Sps)
 % SAMP_PHASE_RECOVERY This function performs sample phase recovery on 
 % dual-polarization signals by determining the optimal sampling phase.
 % The function first interpolates the input signals for both polarizations

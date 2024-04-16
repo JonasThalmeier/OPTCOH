@@ -20,7 +20,7 @@ function outputSig = phase_recovery(inputSig, revSig)
 
 % Validate lengths and preprocess signals
 len = length(revSig);                     % Length of the received signal
-inputSig_1Sps = inputSig(2:2:len);             % Downsample the input signal to match the received signal length
+inputSig_1Sps = inputSig(2:2:len);        % Downsample the input signal to match the received signal length
 
 % Initialize parameters
 N = 100;                                  % Number of phase shifts to test
@@ -28,8 +28,9 @@ corr = zeros(N+1,1);                      % Preallocate correlation array
 
 % Compute correlation for various phase shifts
 for k = 0:N
-    [c, lags] = xcorr(angle(inputSig_1Sps .* exp(1i*pi*k/50)), angle(revSig)); % Cross-correlation between phase-shifted input and received signal
-    corr(k+1) = max(abs(c));                   % Store the maximum correlation for each phase shift
+    [c, lags] = xcorr(angle(inputSig_1Sps .* exp(1i*pi*k/50)), angle(revSig));
+                                          % Cross-correlation between phase-shifted input and received signal
+    corr(k+1) = max(abs(c));              % Store the maximum correlation for each phase shift
 end
 figure;
 plot(corr);
