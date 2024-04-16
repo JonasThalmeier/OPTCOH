@@ -10,7 +10,7 @@ MODULATIONS = [QPSK,QAM16];
 
 modulation = ["QPSK" "16-QAM"];
 r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r=1;
+r=2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 
 % Parameters
@@ -63,32 +63,89 @@ downsampledSig_Xpol = downsample(rxSig_Xpol, SpS_down);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SpS_down);
 
 upsampledSig_Xpol_txSymb = upsample(MODULATIONS(r).SIG.Xpol.txSymb, SpS_up);
-upsampledSig_Xpol_txSymb(2:2:end) = upsampledSig_Xpol_txSymb(1:2:end-1);
+upsampledSig_Xpol_txSymb(2:2:end) = upsampledSig_Xpol_txSymb(1:2:end);
+
+% Correlation sample 1
+downsampledSig_Xpol_1 = downsampledSig_Xpol(1:2:length(downsampledSig_Xpol));
+downsampledSig_Ypol_1 = downsampledSig_Ypol(1:2:length(downsampledSig_Ypol));
 
 figure();
-[c,lags] = xcorr( downsampledSig_Xpol(1:length(upsampledSig_Xpol_txSymb)), upsampledSig_Xpol_txSymb);
-stem(lags,real(c))
+[c1,lags1] = xcorr(downsampledSig_Xpol_1(1:length(upsampledSig_Xpol_txSymb(1:2:end))), upsampledSig_Xpol_txSymb(1:2:end));
+stem(lags1,real(c1))
 
-[M,I] = max(c);
+[M1,I1] = max(c1);
 
-downsampledSig_Xpol = downsampledSig_Xpol(lags(I)+SpS_up:end-lags(I), :);
-downsampledSig_Ypol = downsampledSig_Ypol(lags(I)+SpS_up:end-lags(I), :);
+downsampledSig_Xpol_1 = downsampledSig_Xpol_1(lags1(I1)+1:end-lags1(I1), :);
+downsampledSig_Ypol_1 = downsampledSig_Ypol_1(lags1(I1)+1:end-lags1(I1), :);
 
 figure();
-[c,lags] = xcorr( downsampledSig_Xpol(1:length(upsampledSig_Xpol_txSymb)), upsampledSig_Xpol_txSymb);
-stem(lags,real(c))
-%%
-downsampledSig_Xpol = downsampledSig_Xpol/abs(real(median(downsampledSig_Xpol))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
-downsampledSig_Ypol = downsampledSig_Ypol/abs(real(median(downsampledSig_Ypol)));
+[c1,lags1] = xcorr( downsampledSig_Xpol_1(1:length(upsampledSig_Xpol_txSymb(1:2:end-1))), upsampledSig_Xpol_txSymb(1:2:end-1));
+stem(lags1,real(c1))
+
+downsampledSig_Xpol_1 = downsampledSig_Xpol_1/abs(real(median(downsampledSig_Xpol_1))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
+downsampledSig_Ypol_1 = downsampledSig_Ypol_1/abs(real(median(downsampledSig_Ypol_1)));
+
+% Plot constellation
+figure;
+scatter(real(downsampledSig_Xpol_1), imag(downsampledSig_Xpol_1), ".", "k");
+grid on;
+
+
+
+% Correlation sample 2
+downsampledSig_Xpol_2 = downsampledSig_Xpol(2:2:length(downsampledSig_Xpol));
+downsampledSig_Ypol_2 = downsampledSig_Ypol(2:2:length(downsampledSig_Ypol));
+
+figure();
+[c2,lags2] = xcorr(downsampledSig_Xpol_2(1:length(upsampledSig_Xpol_txSymb(2:2:end))), upsampledSig_Xpol_txSymb(2:2:end));
+stem(lags2,real(c2))
+
+[M2,I2] = max(c2);
+
+downsampledSig_Xpol_2 = downsampledSig_Xpol_2(lags2(I2)+1:end-lags2(I2), :);
+downsampledSig_Ypol_2 = downsampledSig_Ypol_2(lags2(I2)+1:end-lags2(I2), :);
+
+figure();
+[c2,lags2] = xcorr( downsampledSig_Xpol_2(1:length(upsampledSig_Xpol_txSymb(2:2:end))), upsampledSig_Xpol_txSymb(2:2:end));
+stem(lags2,real(c2))
+
+downsampledSig_Xpol_2 = downsampledSig_Xpol_2/abs(real(median(downsampledSig_Xpol_2))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
+downsampledSig_Ypol_2 = downsampledSig_Ypol_2/abs(real(median(downsampledSig_Ypol_2)));
+
+% Plot constellation
+figure;
+scatter(real(downsampledSig_Xpol_2), imag(downsampledSig_Xpol_2), ".", "k");
+grid on;
+
+
+% Decide which phase is better using the variance of the energies
+
+if var(abs(downsampledSig_Xpol_1)) < var(abs(downsampledSig_Xpol_2))
+    downsampledSig_Xpol = downsampledSig_Xpol_1;
+else
+    downsampledSig_Xpol = downsampledSig_Xpol_2;
+end
+
+if var(abs(downsampledSig_Ypol_1)) < var(abs(downsampledSig_Ypol_2))
+    downsampledSig_Ypol = downsampledSig_Ypol_1;
+else
+    downsampledSig_Ypol = downsampledSig_Ypol_2;
+end
+
+%clear downsampledSig_Xpol_1 downsampledSig_Xpol_2 downsampledSig_Ypol_2 downsampledSig_Ypol_1;
 
 % Plot constellation
 figure;
 scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".", "k");
 grid on;
-%%
-max_energy = max(abs(downsampledSig_Xpol));
 
-if max_energy < 2
+figure;
+scatter(real(downsampledSig_Ypol), imag(downsampledSig_Ypol), ".", "k");
+grid on;
+%%
+mean_energy = mean(abs(downsampledSig_Xpol));
+
+if mean_energy < 2
     fprintf('The tracked moduluation is: QPSK\n');
     [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
 else
