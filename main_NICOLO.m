@@ -10,7 +10,6 @@ MODULATIONS = [QPSK,QAM16];
 
 modulation = ["QPSK" "16-QAM"];
 r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r=2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 
 % Parameters
@@ -25,6 +24,10 @@ SpS_up = MODULATIONS(r).SIG.Sps/SpS_down;
 
 rxSig_Xpol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Xpol.txSig);
 rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.txSig);
+
+% Create delay and phase convolved signals
+[delay_phase_distorted_RX_Xpol, delay_phase_distorted_RX_Ypol] = DP_Distortion(MODULATIONS(r).SIG.Xpol.txSig, MODULATIONS(r).SIG.Ypol.txSig, MODULATIONS(r).PulseShaping.b_coeff);
+
 
 % %-------Plotting Phase and Amplitude of the filtered signal----------------
 % % Select the first 30 elements
@@ -59,11 +62,33 @@ rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.t
 
 %----------------Downsample/Demapping the signal---------------------------
 
+% Recover from delay and phase
 downsampledSig_Xpol = downsample(rxSig_Xpol, SpS_down);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SpS_down);
 
+downsampled_distortedSig_Xpol = downsample(delay_phase_distorted_RX_Xpol, SpS_down);
+downsampled_distortedSig_Ypol = downsample(delay_phase_distorted_RX_Ypol, SpS_down);
+
+[corr1, lag_1] = xcorr(downsampledSig_Xpol(1:65536),downsampled_distortedSig_Xpol(1:65536));
+figure(), stem(lag_1,abs(corr1));
+[max_corr, max_index] = max(abs(corr1));
+fprintf('The tracked delay is of %d samples.\n', 4*abs(lag_1(max_index)));
+recovered_TXSig_Xpol = downsampled_distortedSig_Xpol(abs(lag_1(max_index))+1:end);
+[corr1, lag_1] = xcorr(downsampledSig_Xpol(1:65536),recovered_TXSig_Xpol(1:65536));
+figure(), stem(lag_1,abs(corr1));
+
+%%
+[corr2, lag_2] = xcorr(downsampledSig_Ypol(1:65536),downsampled_distortedSig_Ypol(1:65536));
+figure(), stem(lag_2,abs(corr2));
+
+%%
+% Apply 2 SpS decoding
+
 upsampledSig_Xpol_txSymb = upsample(MODULATIONS(r).SIG.Xpol.txSymb, SpS_up);
 upsampledSig_Xpol_txSymb(2:2:end) = upsampledSig_Xpol_txSymb(1:2:end);
+
+upsampledSig_Ypol_txSymb = upsample(MODULATIONS(r).SIG.Ypol.txSymb, SpS_up);
+upsampledSig_Ypol_txSymb(2:2:end) = upsampledSig_Ypol_txSymb(1:2:end);
 
 % Correlation sample 1
 downsampledSig_Xpol_1 = downsampledSig_Xpol(1:2:length(downsampledSig_Xpol));
@@ -72,10 +97,11 @@ downsampledSig_Ypol_1 = downsampledSig_Ypol(1:2:length(downsampledSig_Ypol));
 figure();
 [c1,lags1] = xcorr(downsampledSig_Xpol_1(1:length(upsampledSig_Xpol_txSymb(1:2:end))), upsampledSig_Xpol_txSymb(1:2:end));
 stem(lags1,real(c1))
-
 [M1,I1] = max(c1);
-
 downsampledSig_Xpol_1 = downsampledSig_Xpol_1(lags1(I1)+1:end-lags1(I1), :);
+
+[c1,lags1] = xcorr(downsampledSig_Ypol_1(1:length(upsampledSig_Ypol_txSymb(1:2:end))), upsampledSig_Ypol_txSymb(1:2:end));
+[M1,I1] = max(c1);
 downsampledSig_Ypol_1 = downsampledSig_Ypol_1(lags1(I1)+1:end-lags1(I1), :);
 
 figure();
@@ -99,10 +125,11 @@ downsampledSig_Ypol_2 = downsampledSig_Ypol(2:2:length(downsampledSig_Ypol));
 figure();
 [c2,lags2] = xcorr(downsampledSig_Xpol_2(1:length(upsampledSig_Xpol_txSymb(2:2:end))), upsampledSig_Xpol_txSymb(2:2:end));
 stem(lags2,real(c2))
-
 [M2,I2] = max(c2);
-
 downsampledSig_Xpol_2 = downsampledSig_Xpol_2(lags2(I2)+1:end-lags2(I2), :);
+
+[c2,lags2] = xcorr(downsampledSig_Ypol_2(1:length(upsampledSig_Ypol_txSymb(2:2:end))), upsampledSig_Ypol_txSymb(2:2:end));
+[M2,I2] = max(c2);
 downsampledSig_Ypol_2 = downsampledSig_Ypol_2(lags2(I2)+1:end-lags2(I2), :);
 
 figure();
@@ -120,27 +147,31 @@ grid on;
 
 % Decide which phase is better using the variance of the energies
 
-if var(abs(downsampledSig_Xpol_1)) < var(abs(downsampledSig_Xpol_2))
-    downsampledSig_Xpol = downsampledSig_Xpol_1;
-else
-    downsampledSig_Xpol = downsampledSig_Xpol_2;
-end
-
-if var(abs(downsampledSig_Ypol_1)) < var(abs(downsampledSig_Ypol_2))
-    downsampledSig_Ypol = downsampledSig_Ypol_1;
-else
-    downsampledSig_Ypol = downsampledSig_Ypol_2;
-end
+downsampledSig_Xpol = downsampledSig_Xpol_1;
+downsampledSig_Ypol = downsampledSig_Ypol_1;
+% if mean(histcounts(abs(downsampledSig_Xpol_1))) > mean(histcounts(abs(downsampledSig_Xpol_2)))
+%     downsampledSig_Xpol = downsampledSig_Xpol_1;
+% else
+%     downsampledSig_Xpol = downsampledSig_Xpol_2;
+% end
+% 
+% if mean(histcounts(abs(downsampledSig_Ypol_1))) > mean(histcounts(abs(downsampledSig_Ypol_2)))
+%     downsampledSig_Ypol = downsampledSig_Ypol_1;
+% else
+%     downsampledSig_Ypol = downsampledSig_Ypol_2;
+% end
 
 %clear downsampledSig_Xpol_1 downsampledSig_Xpol_2 downsampledSig_Ypol_2 downsampledSig_Ypol_1;
 
 % Plot constellation
 figure;
 scatter(real(downsampledSig_Xpol), imag(downsampledSig_Xpol), ".", "k");
+title('Xpol constellation');
 grid on;
 
 figure;
 scatter(real(downsampledSig_Ypol), imag(downsampledSig_Ypol), ".", "k");
+title('Ypol constellation');
 grid on;
 %%
 mean_energy = mean(abs(downsampledSig_Xpol));
