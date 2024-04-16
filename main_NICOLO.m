@@ -26,8 +26,49 @@ rxSig_Xpol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Xpol.t
 rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.txSig);
 
 % Create delay and phase convolved signals
-[delay_phase_distorted_RX_Xpol, delay_phase_distorted_RX_Ypol, phase] = DP_Distortion(MODULATIONS(r).SIG.Xpol.txSig, MODULATIONS(r).SIG.Ypol.txSig, MODULATIONS(r).PulseShaping.b_coeff);
+[delay_phase_distorted_RX_Xpol, delay_phase_distorted_RX_Ypol] = DP_Distortion(MODULATIONS(r).SIG.Xpol.txSig, MODULATIONS(r).SIG.Ypol.txSig, MODULATIONS(r).PulseShaping.b_coeff);
 
+
+% ----- Recover from delay and phase at 8 SpS, this way no problems with downsampling
+
+% Delay
+[corr1, lag_1] = xcorr(rxSig_Xpol,delay_phase_distorted_RX_Xpol);
+figure(), stem(lag_1,abs(corr1));
+[max_corr, max_index] = max(abs(corr1));
+fprintf('The Xpol tracked delay is of %d samples.\n', abs(lag_1(max_index)));
+recovered_TXSig_Xpol = delay_phase_distorted_RX_Xpol(abs(lag_1(max_index))+1:end);
+[corr1, lag_1] = xcorr(rxSig_Xpol,recovered_TXSig_Xpol);
+figure(), stem(lag_1,abs(corr1));
+
+% Phase 
+[theta,rho] = cart2pol(real(rxSig_Xpol(1)),imag(rxSig_Xpol(1)));
+[theta2,rho] = cart2pol(real(recovered_TXSig_Xpol(1)),imag(recovered_TXSig_Xpol(1)));
+angle = theta2-theta;
+fprintf('The Xpol tracked phase is of %.0f.\n', (angle*180/pi));
+
+recovered_TXSig_Xpol = recovered_TXSig_Xpol.*exp(-1i * angle);
+
+fprintf('The Xpol sequence is correctly recovered [1 yes/ 0 no]: %d\n', isequal(round(rxSig_Xpol,8),round(recovered_TXSig_Xpol,8)));
+% we have to add this round because when it comes to compare to the distorted version matlab doesn't set them equal due to to high precision
+
+% Delay
+[corr1, lag_1] = xcorr(rxSig_Ypol,delay_phase_distorted_RX_Ypol);
+figure(), stem(lag_1,abs(corr1));
+[max_corr, max_index] = max(abs(corr1));
+fprintf('The Ypol tracked delay is of %d samples.\n', abs(lag_1(max_index)));
+recovered_TXSig_Ypol = delay_phase_distorted_RX_Ypol(abs(lag_1(max_index))+1:end);
+[corr1, lag_1] = xcorr(rxSig_Ypol,recovered_TXSig_Ypol);
+figure(), stem(lag_1,abs(corr1));
+
+% Phase 
+[theta,rho] = cart2pol(real(rxSig_Ypol(1)),imag(rxSig_Ypol(1)));
+[theta2,rho] = cart2pol(real(recovered_TXSig_Ypol(1)),imag(recovered_TXSig_Ypol(1)));
+angle = theta2-theta;
+fprintf('The Ypol tracked phase is of %.0f.\n', (angle*180/pi));
+
+recovered_TXSig_Ypol = recovered_TXSig_Ypol.*exp(-1i * angle);
+
+fprintf('The Ypol sequence is correctly recovered [1 yes/ 0 no]: %d\n', isequal(round(rxSig_Ypol,8),round(recovered_TXSig_Ypol,8)));
 
 % %-------Plotting Phase and Amplitude of the filtered signal----------------
 % % Select the first 30 elements
@@ -62,39 +103,10 @@ rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.t
 
 %----------------Downsample/Demapping the signal---------------------------
 
-% ----- Recover from delay and phase
 downsampledSig_Xpol = downsample(rxSig_Xpol, SpS_down);
 downsampledSig_Ypol = downsample(rxSig_Ypol, SpS_down);
 
-downsampled_distortedSig_Xpol = downsample(delay_phase_distorted_RX_Xpol, SpS_down);
-downsampled_distortedSig_Ypol = downsample(delay_phase_distorted_RX_Ypol, SpS_down);
 
-% Delay
-[corr1, lag_1] = xcorr(downsampledSig_Xpol(1:65536),downsampled_distortedSig_Xpol(1:65536));
-figure(), stem(lag_1,abs(corr1));
-[max_corr, max_index] = max(abs(corr1));
-fprintf('The tracked delay is of %d samples.\n', 4*abs(lag_1(max_index)));
-recovered_TXSig_Xpol = downsampled_distortedSig_Xpol(abs(lag_1(max_index))+1:end);
-[corr1, lag_1] = xcorr(downsampledSig_Xpol(1:65536),recovered_TXSig_Xpol(1:65536));
-figure(), stem(lag_1,abs(corr1));
-
-% % Phase 
-% [theta,rho] = cart2pol(real(downsampledSig_Xpol(1)),imag(downsampledSig_Xpol(1)));
-% [theta2,rho] = cart2pol(real(recovered_TXSig_Xpol(1)),imag(recovered_TXSig_Xpol(1)));
-% angle = theta2-theta;
-% fprintf('The tracked phase is of %d.\n', angle*180/pi);
-% 
-% recovered_TXSig_Xpol = recovered_TXSig_Xpol.*exp(1i * angle);
-
-fprintf('The sequence is correctly recovered [1 yes/ 0 no]: %d\n', isequal(recovered_TXSig_Xpol,downsampledSig_Xpol)); % PROBLEMA DI CIFRE SIGNIFICATIVE, ARROTONDARE A MENO
-
-
-
-%%
-[corr2, lag_2] = xcorr(downsampledSig_Ypol(1:65536),downsampled_distortedSig_Ypol(1:65536));
-figure(), stem(lag_2,abs(corr2));
-
-%%
 % Apply 2 SpS decoding
 
 upsampledSig_Xpol_txSymb = upsample(MODULATIONS(r).SIG.Xpol.txSymb, SpS_up);
