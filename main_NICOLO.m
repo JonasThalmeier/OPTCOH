@@ -19,6 +19,16 @@ SpS_up = MODULATIONS(r).SIG.Sps/SpS_down;
 
 % txSig is now loaded along with other structures like SIG and PulseShaping
 
+% I put here constellation estimation in order to generate properly noise
+% since it depends on Nbit too. BUT HOW TO DO IT WITHOUT THE DOWNSAMPLED
+% VERSION?
+
+if r == 1
+    M = 4;
+else
+    M = 16;
+end
+
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
 
@@ -28,47 +38,17 @@ rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.t
 % Create delay and phase convolved signals
 [delay_phase_distorted_RX_Xpol, delay_phase_distorted_RX_Ypol] = DP_Distortion(MODULATIONS(r).SIG.Xpol.txSig, MODULATIONS(r).SIG.Ypol.txSig, MODULATIONS(r).PulseShaping.b_coeff);
 
+% Add of the noise
+[delay_phase_noise_distorted_RX_Xpol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Xpol,SpS_up, M);
+[delay_phase_noise_distorted_RX_Ypol, Noise2] = WGN_Noise_Generation(delay_phase_distorted_RX_Ypol,SpS_up, M);
 
+%%
 % ----- Recover from delay and phase at 8 SpS, this way no problems with downsampling
 
-% Delay
-[corr1, lag_1] = xcorr(rxSig_Xpol,delay_phase_distorted_RX_Xpol);
-figure(), stem(lag_1,abs(corr1));
-[max_corr, max_index] = max(abs(corr1));
-fprintf('The Xpol tracked delay is of %d samples.\n', abs(lag_1(max_index)));
-recovered_TXSig_Xpol = delay_phase_distorted_RX_Xpol(abs(lag_1(max_index))+1:end);
-[corr1, lag_1] = xcorr(rxSig_Xpol,recovered_TXSig_Xpol);
-figure(), stem(lag_1,abs(corr1));
+recovered_TXSig_Xpol = Recover_Delay_Phase_Noise(rxSig_Xpol,delay_phase_noise_distorted_RX_Xpol);
+recovered_TXSig_Ypol = Recover_Delay_Phase_Noise(rxSig_Ypol,delay_phase_noise_distorted_RX_Ypol);
 
-% Phase 
-[theta,rho] = cart2pol(real(rxSig_Xpol(1)),imag(rxSig_Xpol(1)));
-[theta2,rho] = cart2pol(real(recovered_TXSig_Xpol(1)),imag(recovered_TXSig_Xpol(1)));
-angle = theta2-theta;
-fprintf('The Xpol tracked phase is of %.0f.\n', (angle*180/pi));
 
-recovered_TXSig_Xpol = recovered_TXSig_Xpol.*exp(-1i * angle);
-
-fprintf('The Xpol sequence is correctly recovered [1 yes/ 0 no]: %d\n', isequal(round(rxSig_Xpol,8),round(recovered_TXSig_Xpol,8)));
-% we have to add this round because when it comes to compare to the distorted version matlab doesn't set them equal due to to high precision
-
-% Delay
-[corr1, lag_1] = xcorr(rxSig_Ypol,delay_phase_distorted_RX_Ypol);
-figure(), stem(lag_1,abs(corr1));
-[max_corr, max_index] = max(abs(corr1));
-fprintf('The Ypol tracked delay is of %d samples.\n', abs(lag_1(max_index)));
-recovered_TXSig_Ypol = delay_phase_distorted_RX_Ypol(abs(lag_1(max_index))+1:end);
-[corr1, lag_1] = xcorr(rxSig_Ypol,recovered_TXSig_Ypol);
-figure(), stem(lag_1,abs(corr1));
-
-% Phase 
-[theta,rho] = cart2pol(real(rxSig_Ypol(1)),imag(rxSig_Ypol(1)));
-[theta2,rho] = cart2pol(real(recovered_TXSig_Ypol(1)),imag(recovered_TXSig_Ypol(1)));
-angle = theta2-theta;
-fprintf('The Ypol tracked phase is of %.0f.\n', (angle*180/pi));
-
-recovered_TXSig_Ypol = recovered_TXSig_Ypol.*exp(-1i * angle);
-
-fprintf('The Ypol sequence is correctly recovered [1 yes/ 0 no]: %d\n', isequal(round(rxSig_Ypol,8),round(recovered_TXSig_Ypol,8)));
 
 % %-------Plotting Phase and Amplitude of the filtered signal----------------
 % % Select the first 30 elements
@@ -103,8 +83,11 @@ fprintf('The Ypol sequence is correctly recovered [1 yes/ 0 no]: %d\n', isequal(
 
 %----------------Downsample/Demapping the signal---------------------------
 
-downsampledSig_Xpol = downsample(rxSig_Xpol, SpS_down);
-downsampledSig_Ypol = downsample(rxSig_Ypol, SpS_down);
+downsampledSig_Xpol = downsample(recovered_TXSig_Xpol, SpS_down);
+downsampledSig_Ypol = downsample(recovered_TXSig_Ypol, SpS_down);
+
+downsampledSig_Xpol = downsampledSig_Xpol/abs(real(median(downsampledSig_Xpol))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
+downsampledSig_Ypol = downsampledSig_Ypol/abs(real(median(downsampledSig_Ypol)));
 
 
 % Apply 2 SpS decoding
