@@ -39,8 +39,8 @@ rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.t
 [delay_phase_distorted_RX_Xpol, delay_phase_distorted_RX_Ypol] = DP_Distortion(MODULATIONS(r).SIG.Xpol.txSig, MODULATIONS(r).SIG.Ypol.txSig, MODULATIONS(r).PulseShaping.b_coeff);
 
 % Add of the noise
-[delay_phase_noise_distorted_RX_Xpol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Xpol,SpS_up, M);
-[delay_phase_noise_distorted_RX_Ypol, Noise2] = WGN_Noise_Generation(delay_phase_distorted_RX_Ypol,SpS_up, M);
+[delay_phase_noise_distorted_RX_Xpol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Xpol,MODULATIONS(r).SIG.Sps, M);
+[delay_phase_noise_distorted_RX_Ypol, Noise2] = WGN_Noise_Generation(delay_phase_distorted_RX_Ypol,MODULATIONS(r).SIG.Sps, M);
 
 %%
 % ----- Recover from delay and phase at 8 SpS, this way no problems with downsampling
