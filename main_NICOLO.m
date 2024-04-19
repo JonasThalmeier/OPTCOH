@@ -42,7 +42,7 @@ rxSig_Ypol = conv(MODULATIONS(r).PulseShaping.b_coeff, MODULATIONS(r).SIG.Ypol.t
 [delay_phase_noise_distorted_RX_Xpol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Xpol,MODULATIONS(r).SIG.Sps, M);
 [delay_phase_noise_distorted_RX_Ypol, Noise2] = WGN_Noise_Generation(delay_phase_distorted_RX_Ypol,MODULATIONS(r).SIG.Sps, M);
 
-%%
+
 % ----- Recover from delay and phase at 8 SpS, this way no problems with downsampling
 
 recovered_TXSig_Xpol = Recover_Delay_Phase_Noise(rxSig_Xpol,delay_phase_noise_distorted_RX_Xpol);
@@ -105,6 +105,7 @@ downsampledSig_Ypol_1 = downsampledSig_Ypol(1:2:length(downsampledSig_Ypol));
 figure();
 [c1,lags1] = xcorr(downsampledSig_Xpol_1(1:length(upsampledSig_Xpol_txSymb(1:2:end))), upsampledSig_Xpol_txSymb(1:2:end));
 stem(lags1,real(c1))
+title('1st SpS');
 [M1,I1] = max(c1);
 downsampledSig_Xpol_1 = downsampledSig_Xpol_1(lags1(I1)+1:end-lags1(I1), :);
 
@@ -122,6 +123,7 @@ downsampledSig_Ypol_1 = downsampledSig_Ypol_1/abs(real(median(downsampledSig_Ypo
 % Plot constellation
 figure;
 scatter(real(downsampledSig_Xpol_1), imag(downsampledSig_Xpol_1), ".", "k");
+title('1st SpS');
 grid on;
 
 
@@ -150,9 +152,10 @@ downsampledSig_Ypol_2 = downsampledSig_Ypol_2/abs(real(median(downsampledSig_Ypo
 % Plot constellation
 figure;
 scatter(real(downsampledSig_Xpol_2), imag(downsampledSig_Xpol_2), ".", "k");
+title('2nd SpS');
 grid on;
 
-
+%%
 % Decide which phase is better using the variance of the energies
 
 downsampledSig_Xpol = downsampledSig_Xpol_1;
