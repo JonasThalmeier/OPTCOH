@@ -20,6 +20,25 @@ fprintf('The Xpol tracked phase is of %.0f.\n', (mean(angle)*180/pi));
 
 recovered_TXSig_Apol = recovered_TXSig_Apol.*exp(-1i .* angle);
 
+% 
+% Ki = 0.01; % learning rate
+% N = length(recovered_TXSig_Apol);
+% phase_estimate = zeros(1, N);
+% phase_estimate1 = zeros(1, N);
+% phase_estimate(1) = angle(rxSig_Apol(1));
+% phase_estimate1(1) = angle(recovered_TXSig_Apol(1));
+% %phase_corrected_signal = zeros(size(rxSig_Apol));
+% 
+% for k = 2:length(recovered_TXSig_Apol)
+%     % Phase detector
+%     phase_estimate(k) = phase_estimate(k-1) + Ki.*imag(rxSig_Apol(k).*exp(-1i*phase_estimate(k-1)));
+%     phase_estimate1(k) = phase_estimate1(k-1) + Ki.*imag(recovered_TXSig_Apol(k).*exp(-1i*phase_estimate1(k-1)));
+%     
+% end
+% 
+% phase_compensation = phase_estimate1 - phase_estimate; 
+% recovered_TXSig_Apol = recovered_TXSig_Apol.*exp(-1i.*phase_compensation'); 
+
 fprintf('The Xpol sequence is correctly recovered [1 yes/ 0 no]: %d\n', isequal(round(rxSig_Apol,8),round(recovered_TXSig_Apol,8)));
 % we have to add this round because when it comes to compare to the distorted version matlab doesn't set them equal due to to high precision
 
