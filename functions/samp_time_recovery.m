@@ -41,6 +41,13 @@ for k=1:Sps+1
     cumEr(k) = (sum(erX(k:Sps:end))+sum(erY(k:Sps:end)))/N;
 end
 [M IND] = min(cumEr);
+% figure;
+% for k=0:Sps
+%     subplot(Sps+1, 1, k+1);
+%     scatter(real(Xpol(IND+k:Sps:end)), imag(Xpol(IND+k:Sps:end)));
+%     title(k);
+% end
+IND
 downsampledSig_Xpol = Xpol(IND-1:Sps/2:end);
 downsampledSig_Ypol = Ypol(IND-1:Sps/2:end);
 end

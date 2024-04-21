@@ -3,138 +3,98 @@ close all;
 clc;
 
 % Load the .mat file
-load('TXsequences/TXsequence_QPSK_64GBaud.mat');
-%load('TXsequences/TXsequence_16QAM_64GBaud.mat');
-
-if size(SIG.Xpol.bits, 2) == 2
-    MODULATIONS = 'QPSK';
-else
-    MODULATIONS = 'QAM16';
-end
+MODULATIONS = ["QPSK","16QAM"];
+modulation = ["QPSK" "16-QAM"];
+% r = randi([1, 2], 1); % Get a 1 or 2 randomly.
+r = 2;
+fprintf('The transmitted moduluation is: %s\n', modulation(r));
+load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
 % Parameters
 
+SpS_down = 4;
+SpS_up = SIG.Sps/SpS_down;
+
 % txSig is now loaded along with other structures like SIG and PulseShaping
+
+% I put here constellation estimation in order to generate properly noise
+% since it depends on Nbit too. BUT HOW TO DO IT WITHOUT THE DOWNSAMPLED
+% VERSION?
+
+if r == 1
+    M = 4;
+else
+    M = 16;
+end
 
 % Apply matched filtering
 % Assuming b_coeff is your filter coefficients from the PulseShaping structure
 
+rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
+rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
-%------------------Fiber Simulation----------------------------------------
-% [Xpol_dc, Ypol_dc] = cd_sim(SIG.Xpol.txSig, SIG.Ypol.txSig, SIG.Sps, SIG.symbolRate, 17, .001, 1550);
-Xpol = SIG.Xpol.txSig;
-Ypol = SIG.Ypol.txSig;
-r = randi(8,1);
-Xpol = Xpol(r:end);
-Ypol = Ypol(r:end);
+% Create delay and phase convolved signals
+[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, PulseShaping.b_coeff);
 
-rxSig_Xpol = conv(PulseShaping.b_coeff, Xpol);
-rxSig_Ypol = conv(PulseShaping.b_coeff, Ypol);
+% Adding the noise
+[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 15);
+[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 15);
 
-% %-------Plotting Phase and Amplitude of the filtered signal----------------
-% % Select the first 30 elements
-% n1 = 1;
-% n2 = 200;
-% selectedElements = rxSig_Xpol(n1:n2);
-% 
-% % Calculate amplitude and phase
-% amplitude = abs(selectedElements);
-% phase = angle(selectedElements)*180/pi;
-% 
-% % Create a new figure
-% figure;
-% 
-% % Plot amplitude
-% subplot(2, 1, 1);  % This creates a subplot with 2 rows, 1 column, and selects the 1st subplot.
-% plot(n1:n2, amplitude, '-o');
-% title('Amplitude of the First 30 Elements of rxSig_Xpol');
-% xlabel('Element Index');
-% ylabel('Amplitude');
-% 
-% % Plot phase
-% subplot(2, 1, 2);  % This selects the 2nd subplot in the same figure.
-% plot(n1:n2, phase, '-x');
-% title('Phase of the First 30 Elements of rxSig_Xpol');
-% xlabel('Element Index');
-% ylabel('Phase (deg)');
-% yline(-180);
-% yline(-90);
-% yline(90);
-% yline(180);
+%----------------Downsample the signal---------------------------
+X_2Sps = downsample(X_distorted_AGWN, SpS_down);
+Y_2Sps = downsample(Y_distorted_AWGN, SpS_down);
 
-%----------------Downsample/Demapping the signal---------------------------
+%-----------------Recover the right sampling time-------------------------
+[X_2Sps,Y_2Sps] = samp_time_recovery(X_2Sps,Y_2Sps,SIG.Sps);
+% Plot constellation
+figure;
+scatter(real(X_2Sps(1:2:end)), imag(X_2Sps(1:2:end)), ".", "k");
+title('Xpol constellation, samp time recovered');
+grid on;
 
-downsampledSig_Xpol = downsample(rxSig_Xpol, SIG.Sps/2);
-downsampledSig_Ypol = downsample(rxSig_Ypol, SIG.Sps/2);
+% ----- Recover from delay and phase -------------------------------------
+X_2Sps = Recover_Delay_Phase_Noise(X_2Sps,SIG.Xpol.txSymb);
+Y_2Sps = Recover_Delay_Phase_Noise(Y_2Sps,SIG.Ypol.txSymb);
 
-%------------------------Gardners TED--------------------------------------
-Xpol = interp(downsampledSig_Xpol,4);
-Ypol = interp(downsampledSig_Ypol,4);
-earlyX = Xpol(1:end-2);
-lateX = Xpol(3:end);
-midX = Xpol(2:end-1);
-earlyY = Ypol(1:end-2);
-lateY = Ypol(3:end);
-midY = Ypol(2:end-1);
-erX = real(conj(midX).*(lateX-earlyX));
-erY = real(conj(midY).*(lateY-earlyY));
-N = length(erX)/8;
-cumEr = zeros(8,1);
-for k=1:9
-    cumEr(k) = (sum(erX(k:8:end))+sum(erY(k:8:end)))/N;
-end
-[M IND] = min(cumEr)
-downsampledSig_Xpol = Xpol(IND-1:4:end);
-downsampledSig_Ypol = Ypol(IND-1:4:end);
-
-
-
-[c,lags] = xcorr(downsampledSig_Xpol(2:2:length(SIG.Xpol.txSymb)), SIG.Xpol.txSymb);
-stem(lags,real(c));
-
-[M,I] = max(c);
-
-downsampledSig_Xpol = downsampledSig_Xpol(2*(lags(I)+1):end-2*(lags(I)), :);
-downsampledSig_Ypol = downsampledSig_Ypol(2*(lags(I)+1):end-2*(lags(I)), :);
-
-downsampledSig_Xpol = downsampledSig_Xpol/abs(real(median(downsampledSig_Xpol(2:2:end)))); % normalize over the median value since gaussian shape, take oly real part because it represents the unit in the non-normalized case
-downsampledSig_Ypol = downsampledSig_Ypol/abs(real(median(downsampledSig_Ypol(2:2:end))));
 
 % Plot constellation
 figure;
-scatter(real(downsampledSig_Xpol(2:2:end)), imag(downsampledSig_Xpol(2:2:end)), ".", "k");
+scatter(real(X_2Sps(1:2:end)), imag(X_2Sps(1:2:end)), ".", "k");
+title('Xpol constellation');
 grid on;
 
-max_energy = max(abs(downsampledSig_Xpol));
-if MODULATIONS == 'QPSK'
-    M =2;
-else
-    M = 4;
-end
-if M == 2
+figure;
+scatter(real(Y_2Sps(1:2:end)), imag(Y_2Sps(1:2:end)), ".", "k");
+title('Ypol constellation');
+grid on;
+%%
+[counts, binEdges] = histcounts(angle(X_2Sps(1:2:end)), 12, 'Normalization', 'probability');
+%histogram(angle(downsampledSig_Xpol(2:2:end)), 12, 'Normalization', 'probability');
+if max(counts) > .17
     fprintf('The tracked moduluation is: QPSK\n');
     M = 2;
-    [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
+    [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(X_2Sps,Y_2Sps);
 else
     fprintf('The tracked moduluation is: 16-QAM\n');
     M = 4;
-    [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol);
+    [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(X_2Sps,Y_2Sps);
 end
-
-% [idx,C1] = kmeans([real(downsampledSig_Xpol(1000:2000)) imag(downsampledSig_Xpol(1000:2000))], 16);
-% [idx,C2] = kmeans(C1,4);
-% idx = sortrows([idx C1], [1 2]);
-% dist = 0;
-% for k=1:4:13
-%     dist = dist+sum(pdist(idx(k:3+k,2:end), 'euclidean'))/4;
-% end
-
 
 %----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
 % Where N is the number of unique symbols and Npp is the number of repetitions
+
+% N = length(demappedBits_Xpol) / SIG.Npp;  % Calculate the number of unique symbols
 N = length(SIG.Xpol.txSymb);  % Calculate the number of unique symbols
-[consolidatedBits_Xpol,consolidatedBits_Ypol] = voting(N, M, demappedBits_Xpol, demappedBits_Ypol);
+
+consolidatedBits_Xpol = zeros(N, size(SIG.Xpol.bits,2));
+consolidatedBits_Ypol = zeros(N, size(SIG.Xpol.bits,2));
+
+for i = 1:N
+    consolidatedBits_Xpol(i, :) = mode(demappedBits_Xpol(i:N:end,:),1);
+    consolidatedBits_Ypol(i, :) = mode(demappedBits_Ypol(i:N:end,:),1);
+end
+% Now, consolidatedBits contains the 'averaged' bit decisions
 
 
 
