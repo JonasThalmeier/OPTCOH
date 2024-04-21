@@ -40,7 +40,9 @@ rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 [X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 15);
 [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 15);
 
-%----------------Downsample the signal---------------------------
+%----------------Pulse shaping and Downsample the signal-------------------
+X_distorted_AWGN = conv(PulseShaping.b_coeff, X_distorted_AWGN);
+Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_distorted_AWGN);
 X_2Sps = downsample(X_distorted_AGWN, SpS_down);
 Y_2Sps = downsample(Y_distorted_AWGN, SpS_down);
 
@@ -67,32 +69,30 @@ figure;
 scatter(real(Y_2Sps(1:2:end)), imag(Y_2Sps(1:2:end)), ".", "k");
 title('Ypol constellation');
 grid on;
-%%
+
 [counts, binEdges] = histcounts(angle(X_2Sps(1:2:end)), 12, 'Normalization', 'probability');
-%histogram(angle(downsampledSig_Xpol(2:2:end)), 12, 'Normalization', 'probability');
 if max(counts) > .17
     fprintf('The tracked moduluation is: QPSK\n');
     M = 2;
-    [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QPSK_demapping(X_2Sps,Y_2Sps);
+    [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_2Sps,Y_2Sps);
 else
     fprintf('The tracked moduluation is: 16-QAM\n');
     M = 4;
-    [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(X_2Sps,Y_2Sps);
+    [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_2Sps,Y_2Sps);
 end
 
 %----------------Majority voting over the repeated symbols-----------------
 % Let's assume demappedBits_Xpol is your bit outcomes with size [N * Npp, 2]
 % Where N is the number of unique symbols and Npp is the number of repetitions
 
-% N = length(demappedBits_Xpol) / SIG.Npp;  % Calculate the number of unique symbols
 N = length(SIG.Xpol.txSymb);  % Calculate the number of unique symbols
 
-consolidatedBits_Xpol = zeros(N, size(SIG.Xpol.bits,2));
-consolidatedBits_Ypol = zeros(N, size(SIG.Xpol.bits,2));
+X_consolidated = zeros(N, size(SIG.Xpol.bits,2));
+Y_consolidatedBits = zeros(N, size(SIG.Xpol.bits,2));
 
 for i = 1:N
-    consolidatedBits_Xpol(i, :) = mode(demappedBits_Xpol(i:N:end,:),1);
-    consolidatedBits_Ypol(i, :) = mode(demappedBits_Ypol(i:N:end,:),1);
+    X_consolidated(i, :) = mode(X_demappedBits(i:N:end,:),1);
+    Y_consolidatedBits(i, :) = mode(Y_demappedBits(i:N:end,:),1);
 end
 % Now, consolidatedBits contains the 'averaged' bit decisions
 
@@ -100,14 +100,14 @@ end
 
 %-------------------------BER calculation----------------------------------
 
-if size(consolidatedBits_Xpol) ~= size(SIG.Xpol.bits)
+if size(X_consolidated) ~= size(SIG.Xpol.bits)
     error('Arrays have different sizes.');
 else
     % Calculate the number of bit errors
-    bitErrors_Xpol = sum(sum(consolidatedBits_Xpol ~= SIG.Xpol.bits));
+    bitErrors_Xpol = sum(sum(X_consolidated ~= SIG.Xpol.bits));
 
     % Calculate the total number of bits
-    totalBits_Xpol = numel(consolidatedBits_Xpol);
+    totalBits_Xpol = numel(X_consolidated);
 
     % Calculate the Bit Error Rate (BER)
     BER_Xpol = bitErrors_Xpol / totalBits_Xpol;
@@ -118,14 +118,14 @@ else
     fprintf('Bit Error Rate (BER) for X polariztion: %f\n', BER_Xpol);
 end
 
-if size(consolidatedBits_Ypol) ~= size(SIG.Ypol.bits)
+if size(Y_consolidatedBits) ~= size(SIG.Ypol.bits)
     error('Arrays have different sizes.');
 else
     % Calculate the number of bit errors
-    bitErrors_Ypol = sum(sum(consolidatedBits_Ypol ~= SIG.Ypol.bits));
+    bitErrors_Ypol = sum(sum(Y_consolidatedBits ~= SIG.Ypol.bits));
 
     % Calculate the total number of bits
-    totalBits_Ypol = numel(consolidatedBits_Ypol);
+    totalBits_Ypol = numel(Y_consolidatedBits);
 
     % Calculate the Bit Error Rate (BER)
     BER_Ypol = bitErrors_Ypol / totalBits_Ypol;
