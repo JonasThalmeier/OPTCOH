@@ -41,7 +41,7 @@ rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 15);
 
 %----------------Pulse shaping and Downsample the signal-------------------
-X_distorted_AWGN = conv(PulseShaping.b_coeff, X_distorted_AWGN);
+X_distorted_AGWN = conv(PulseShaping.b_coeff, X_distorted_AGWN);
 Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_distorted_AWGN);
 X_2Sps = downsample(X_distorted_AGWN, SpS_down);
 Y_2Sps = downsample(Y_distorted_AWGN, SpS_down);
@@ -57,6 +57,10 @@ grid on;
 % ----- Recover from delay and phase -------------------------------------
 X_2Sps = Recover_Delay_Phase_Noise(X_2Sps,SIG.Xpol.txSymb);
 Y_2Sps = Recover_Delay_Phase_Noise(Y_2Sps,SIG.Ypol.txSymb);
+
+%-------------Remove Transient at the end of transmission-----------------
+X_2Sps = X_2Sps(1:end-(length(PulseShaping.b_coeff)/(0.5*SIG.Sps)));
+Y_2Sps = Y_2Sps(1:end-(length(PulseShaping.b_coeff)/(0.5*SIG.Sps)));
 
 
 % Plot constellation
