@@ -46,21 +46,22 @@ Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_distorted_AWGN);
 X_2Sps = downsample(X_distorted_AGWN, SpS_down);
 Y_2Sps = downsample(Y_distorted_AWGN, SpS_down);
 
-%-----------------Recover the right sampling time-------------------------
-[X_2Sps,Y_2Sps] = samp_time_recovery(X_2Sps,Y_2Sps,SIG.Sps);
+%---------------------------EQ---------------------------------------------
+EQ = comm.LinearEqualizer(...
+    'Algorithm','LMS', ...
+    'NumTaps',21);
+
+
 % Plot constellation
 figure;
 scatter(real(X_2Sps(1:2:end)), imag(X_2Sps(1:2:end)), ".", "k");
 title('Xpol constellation, samp time recovered');
 grid on;
 
-% ----- Recover from delay and phase -------------------------------------
-X_2Sps = Recover_Delay_Phase_Noise(X_2Sps,SIG.Xpol.txSymb);
-Y_2Sps = Recover_Delay_Phase_Noise(Y_2Sps,SIG.Ypol.txSymb);
 
 %-------------Remove Transient at the end of transmission-----------------
-X_2Sps = X_2Sps(1:end-(length(PulseShaping.b_coeff)/(0.5*SIG.Sps)));
-Y_2Sps = Y_2Sps(1:end-(length(PulseShaping.b_coeff)/(0.5*SIG.Sps)));
+X_2Sps = X_2Sps(1:end-(length(PulseShaping.b_coeff)/(SIG.Sps)));
+Y_2Sps = Y_2Sps(1:end-(length(PulseShaping.b_coeff)/(SIG.Sps)));
 
 
 % Plot constellation
@@ -102,6 +103,10 @@ end
 
 
 
+
+% % ----- Recover from delay and phase -------------------------------------
+% X_2Sps = Recover_Delay_Phase_Noise(X_2Sps,SIG.Xpol.txSymb);
+% Y_2Sps = Recover_Delay_Phase_Noise(Y_2Sps,SIG.Ypol.txSymb);
 %-------------------------BER calculation----------------------------------
 
 if size(X_consolidated) ~= size(SIG.Xpol.bits)
