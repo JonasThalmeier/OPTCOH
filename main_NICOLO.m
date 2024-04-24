@@ -34,10 +34,10 @@ rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
 rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
 % Create delay and phase convolved signals
-%[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, PulseShaping.b_coeff);
+[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, PulseShaping.b_coeff);
 
 % Adding the noise
-[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig,SIG.Sps, M, 15);
+[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 20);
 %[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 15);
 
 %----------------Pulse shaping and Downsample the signal-------------------
@@ -45,22 +45,29 @@ X_distorted_AGWN = conv(PulseShaping.b_coeff, X_distorted_AGWN);
 %Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_distorted_AWGN);
 % X_2Sps = downsample(X_distorted_AGWN, SpS_down);
 % Y_2Sps = downsample(Y_distorted_AWGN, SpS_down);
-%%
+
 %---------------------------EQ---------------------------------------------
-%From 8 to 15 numtaps are the best for qpsk, qam doesn't work
-EQ = comm.LinearEqualizer('Algorithm','CMA','NumTaps', 1000,'InputSamplesPerSymbol',SIG.Sps, 'Constellation',qammod(0:15,16));
+%From 15 numtaps are the best for qpsk, also for qam, but 60 and 120 seem
+%better. The reference tap for qpsk are 1,3,65,121.
+if r == 1
+    constellation = pskmod(0:3, 4, pi/4);
+    stepsize = 0.0001; %best result
+else
+    constellation = qammod(0:15, 16);
+    stepsize = 0.00001;
+end
+
+EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', 121, 'InputSamplesPerSymbol', SIG.Sps, 'Constellation', constellation, 'ReferenceTap', 65);
 X_eq = EQ(X_distorted_AGWN(1:65536));
-constell = comm.ConstellationDiagram('NumInputPorts',1, 'SamplesPerSymbol',8, 'ReferenceConstellation',qammod(0:15,16));
+constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation);
 constell(X_eq);
 
+pause;
 
+X_eq = downsample(X_eq, SpS_down);
+X_recovered = Recover_Delay_Phase_Noise(X_eq, SIG.Xpol.txSymb(1:65536));
+constell(X_recovered);
 %%
-% Plot constellation
-figure;
-scatter(real(X_2Sps(1:2:end)), imag(X_2Sps(1:2:end)), ".", "k");
-title('Xpol constellation, samp time recovered');
-grid on;
-
 
 %-------------Remove Transient at the end of transmission-----------------
 X_2Sps = X_2Sps(1:end-(length(PulseShaping.b_coeff)/(SIG.Sps)));
