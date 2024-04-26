@@ -1,9 +1,9 @@
-function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Distortion(TX_Xpol,TX_Ypol,PulseShaping_b_coeff)
+function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Distortion(TX_Xpol,TX_Ypol)
 %Performs delay, phase interferences and convolution
 
 %delay = randi(floor(length(TX_Xpol)/160),1); % maximum delay of half a period
 %delay = randi(400,1);
-delay = randi(50,1)*8;
+delay = randi(50,1);
 
 fprintf('The random delay introduced is (x8): %d\n', delay);
 

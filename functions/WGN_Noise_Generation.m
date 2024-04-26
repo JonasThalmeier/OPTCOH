@@ -13,7 +13,7 @@ NoiseNormalized=(randn(1,Nsamples)+1i*randn(1,Nsamples))/sqrt(2);
 % Noise scaling to the given Eb/N0
 Noise=NoiseNormalized*sqrt(NoiseVariance); %1e-3 pratically no noise it works, 1e-2, 1e-1 too
 
-fprintf('The power noise generated is %.4f dBm \n ', 10*log10((mean(abs(Noise).^2))));
+fprintf('The power noise generated is %.4f dBm\n ', 10*log10((mean(abs(Noise).^2))));
 
 delay_phase_noise_distorted_RX_Apol = delay_phase_distorted_RX_Apol + Noise';
 
