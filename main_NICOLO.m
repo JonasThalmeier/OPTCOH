@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "16-QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
@@ -52,7 +52,9 @@ X_distorted_AGWN = conv(PulseShaping.b_coeff, X_distorted_AGWN);
 % [max_corr, max_index] = max(abs(corr1));
 % fprintf('The Xpol tracked delay is of %d samples.\n', abs(lag_1(max_index)));
 
-rx_Xpol_Delay = finddelay(X_distorted_AGWN,rxSig_Xpol);
+% X_distorted_AGWN = downsample(X_distorted_AGWN,SpS_down);
+% rxSig_Xpol = downsample(rxSig_Xpol,SpS_down);
+rx_Xpol_Delay = finddelay(X_distorted_AGWN, rxSig_Xpol);
 fprintf('The Xpol tracked delay is of %d samples.\n', abs(rx_Xpol_Delay));
 
 % X_distorted_AGWN = X_distorted_AGWN(abs(lag_1(max_index))+1:end);
@@ -65,30 +67,39 @@ fprintf('The Xpol tracked delay is of %d samples.\n', abs(rx_Xpol_Delay));
 if r == 1
     constellation = pskmod(0:3, 4, pi/4);
     stepsize = 0.0001; %best result
-    numtaps = 121;
-    referencetap = 61;
+    numtaps = 31;
+    referencetap = 15;
+    modulation = 'QPSK';
 else
     constellation = qammod(0:15, 16);
     stepsize = 0.00001;
-    numtaps = 121;
-    referencetap = 61;
+    numtaps = 31; % bigger filter works better here
+    referencetap = 15;
+    modulation = 'QAM';
 end
 
 aw = true;
 
-EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', SIG.Sps, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', abs(rx_Xpol_Delay), 'AdaptWeightsSource', 'Input port');
-[X_eq,err] = EQ(X_distorted_AGWN(1:end-mod(length(X_distorted_AGWN),8)), aw);
-% constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction', 'SymbolsToDisplay', 'Property');
+EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', SIG.Sps, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', abs(rx_Xpol_Delay));
+[X_eq,err] = EQ(X_distorted_AGWN(1:end-mod(length(X_distorted_AGWN),8)));
+% constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction');
 % constell(X_eq);
 scatterplot(X_eq);
-% eyediagram(X_eq,2*SpS_down);
 
-X_eq = downsample(X_eq,SpS_down);
+carrSynch = comm.CarrierSynchronizer("Modulation", modulation);
 
-X_eq = phaseCorrection(X_eq);
-% constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-% constell2(X_eq);
-scatterplot(X_eq);
+[X_eq, phEst] = carrSynch(X_eq(1:end-mod(length(X_eq),8)));
+fprintf('The random phase recovered is (degrees): %d\n', (mean(phEst) *180 /pi));
+constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+constell2(X_eq);
+
+transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
+X_eq = X_eq(transient_Xpol+1:end-transient_Xpol);
+X_eq = X_eq(1:end-mod(length(X_eq),8));
+constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+constell3(X_eq);
+
+% scatterplot(X_eq);
 % eyediagram(X_eq,2*SpS_down);
 
 % plot(abs(err))
@@ -189,5 +200,5 @@ a = angle(y((real(y) > 0) & (imag(y) > 0)));
 a(a < 0.1) = a(a < 0.1) + pi/2;
 theta = mean(a) - pi/4;
 y = y * exp(-1i*theta);
-fprintf('The random phase recovered is (degrees): %.0f\n', (theta *180 /pi));
+fprintf('The random phase recovered is (degrees): %d\n', (theta *180 /pi));
 end
