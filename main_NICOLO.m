@@ -77,13 +77,19 @@ end
 aw = true;
 
 EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', SIG.Sps, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', abs(rx_Xpol_Delay), 'AdaptWeightsSource', 'Input port');
-[X_eq,err] = EQ(X_distorted_AGWN(1:65536), aw);
-constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction');
-constell(X_eq);
+[X_eq,err] = EQ(X_distorted_AGWN(1:end-mod(length(X_distorted_AGWN),8)), aw);
+% constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction', 'SymbolsToDisplay', 'Property');
+% constell(X_eq);
+scatterplot(X_eq);
+% eyediagram(X_eq,2*SpS_down);
+
+X_eq = downsample(X_eq,SpS_down);
 
 X_eq = phaseCorrection(X_eq);
-constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-constell2(X_eq);
+% constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+% constell2(X_eq);
+scatterplot(X_eq);
+% eyediagram(X_eq,2*SpS_down);
 
 % plot(abs(err))
 % xlabel('Symbols')
