@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "16-QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 2;
+r = 1;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
@@ -37,7 +37,7 @@ rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 %[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
 % Adding the noise
-[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig,SIG.Sps, M, 20);
+[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig,SIG.Sps, M, 10);
 %[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 15);
 
 %----------------Pulse shaping and Downsample the signal-------------------
@@ -80,8 +80,8 @@ end
 
 aw = true;
 
-EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', SIG.Sps, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', abs(rx_Xpol_Delay));
-[X_eq,err] = EQ(X_distorted_AGWN(1:end-mod(length(X_distorted_AGWN),8)));
+EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 8, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', abs(rx_Xpol_Delay));
+[X_eq,err] = EQ(X_distorted_AGWN); % here X_eq is already at 1SpS
 % constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction');
 % constell(X_eq);
 scatterplot(X_eq);
@@ -93,35 +93,35 @@ scatterplot(X_eq);
 % constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
 % constell2(X_eq);
 
-X_2Sps = downsample(X_eq, SpS_down);
+% X_2Sps = downsample(X_eq, SpS_down);
 
-transient_Xpol = abs(finddelay(X_2Sps(1:65536), SIG.Xpol.txSymb));
-X_2Sps = X_2Sps(transient_Xpol+1:end-transient_Xpol);
-constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 2, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-constell3(X_2Sps);
+transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
+X_eq = X_eq(transient_Xpol+1:end-transient_Xpol);
+constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+constell3(X_eq);
 
 
 % constell4 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
 % constell4(X_2Sps);
 
-Y_2Sps =X_2Sps; %Just to give it a value, for the moment i test only the X_pol
+Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
 
-[counts, binEdges] = histcounts(angle(X_2Sps(1:2:end)), 12, 'Normalization', 'probability');
+[counts, binEdges] = histcounts(angle(X_eq(1:2:end)), 12, 'Normalization', 'probability');
 if max(counts) > .17
     fprintf('The tracked moduluation is: QPSK\n');
     M = 4;
-    [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_2Sps,Y_2Sps);
+    [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_eq,Y_2Sps);
 %     X_demappedBits_2 = pskdemod(X_2Sps(1:2:end),M, pi/4); it doesn't demodulate in the same way as our function
 else
     fprintf('The tracked moduluation is: 16-QAM\n');
     M = 16;
 %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
- [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_2Sps,Y_2Sps);
+ [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_eq,Y_2Sps);
 end
 
 
-X_SER = sum(X_demappedSymb(1:length(SIG.Xpol.decSymbols)) ~= SIG.Xpol.decSymbols)/length(SIG.Xpol.txSymb);
-fprintf('The SER on Xpol is: %.9f\n', X_SER);
+X_BER = sum(sum(X_demappedBits(1:length(SIG.Xpol.bits),:) ~= SIG.Xpol.bits))/(length(SIG.Xpol.bits)*4);
+fprintf('The BER on Xpol is: %.26f\n', X_BER);
 % scatterplot(X_eq);
 % eyediagram(X_eq,2*SpS_down);
 
