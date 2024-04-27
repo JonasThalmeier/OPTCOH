@@ -34,10 +34,10 @@ rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
 rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
 % Create delay and phase convolved signals
-%[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
+[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
 % Adding the noise
-[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig,SIG.Sps, M, 10);
+[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 20);
 %[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 15);
 
 %----------------Pulse shaping and Downsample the signal-------------------
@@ -52,8 +52,8 @@ X_distorted_AGWN = conv(PulseShaping.b_coeff, X_distorted_AGWN);
 % [max_corr, max_index] = max(abs(corr1));
 % fprintf('The Xpol tracked delay is of %d samples.\n', abs(lag_1(max_index)));
 
-% X_distorted_AGWN = downsample(X_distorted_AGWN,SpS_down);
-% rxSig_Xpol = downsample(rxSig_Xpol,SpS_down);
+X_distorted_AGWN = downsample(X_distorted_AGWN,SpS_down);
+rxSig_Xpol = downsample(rxSig_Xpol,SpS_down);
 rx_Xpol_Delay = finddelay(X_distorted_AGWN, rxSig_Xpol);
 fprintf('The Xpol tracked delay is of %d samples.\n', abs(rx_Xpol_Delay));
 
@@ -61,6 +61,17 @@ fprintf('The Xpol tracked delay is of %d samples.\n', abs(rx_Xpol_Delay));
 % [corr1, lag_1] = xcorr(rxSig_Xpol(1:65536),X_distorted_AGWN);
 % figure(), stem(lag_1,abs(corr1));
 
+% Power detector
+for sample=1:length(X_distorted_AGWN)
+
+    if abs(X_distorted_AGWN(sample))^2 >= 0.02
+        break;
+    end
+end
+
+fprintf('The Xpol tracked delay is of %d samples.\n', sample);
+
+%%
 %---------------------------EQ---------------------------------------------
 %From 15 numtaps are the best for qpsk, also for qam, but 60 and 120 seem
 %better. The reference tap for qpsk are 1,3,65,121.
@@ -80,29 +91,40 @@ end
 
 aw = true;
 
-EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 8, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', abs(rx_Xpol_Delay));
-[X_eq,err] = EQ(X_distorted_AGWN); % here X_eq is already at 1SpS
+EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', abs(rx_Xpol_Delay));
+[X_eq,err] = EQ(X_distorted_AGWN(1:end-mod(length(X_distorted_AGWN),2))); % here X_eq is already at 1SpS
 % constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction');
 % constell(X_eq);
 scatterplot(X_eq);
 
-%carrSynch = comm.CarrierSynchronizer("Modulation", modulation,"SamplesPerSymbol", SIG.Sps);
+carrSynch = comm.CarrierSynchronizer("Modulation", modulation,"SamplesPerSymbol", 1);
 
-%[X_eq, phEst] = carrSynch(X_eq(1:end-mod(length(X_eq),8)));
-%fprintf('The random phase recovered is (degrees): %d\n', (mean(phEst) *180 /pi));
-% constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+[X_eq, phEst] = carrSynch(X_eq);
+fprintf('The random phase recovered is (degrees): %d\n', (mean(phEst) *180 /pi));
+% constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
 % constell2(X_eq);
+scatterplot(X_eq);
 
-% X_2Sps = downsample(X_eq, SpS_down);
+%Majority voting
 
+plot(abs(err))
+xlabel('Symbols')
+ylabel('Error Magnitude')
+grid on
+title('Time-Varying Channel Without Retraining')
+
+for i=0:pi/2:3/2*pi
+
+fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+
+fprintf('The total phase recovered is (degrees): %d\n', (mean(phEst+i) *180 /pi));
+
+X_eq = X_eq*exp(1i*i);
 transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
 X_eq = X_eq(transient_Xpol+1:end-transient_Xpol);
-constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-constell3(X_eq);
-
-
-% constell4 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-% constell4(X_2Sps);
+% constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After transient correction');
+% constell3(X_eq);
+scatterplot(X_eq);
 
 Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
 
@@ -122,14 +144,12 @@ end
 
 X_BER = sum(sum(X_demappedBits(1:length(SIG.Xpol.bits),:) ~= SIG.Xpol.bits))/(length(SIG.Xpol.bits)*4);
 fprintf('The BER on Xpol is: %.26f\n', X_BER);
+
+end
 % scatterplot(X_eq);
 % eyediagram(X_eq,2*SpS_down);
 
-% plot(abs(err))
-% xlabel('Symbols')
-% ylabel('Error Magnitude')
-% grid on
-% title('Time-Varying Channel Without Retraining')
+
 %%
 
 %-------------Remove Transient at the end of transmission-----------------
