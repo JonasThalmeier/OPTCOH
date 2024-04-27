@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "16-QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 2;
+r = 1;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
@@ -84,21 +84,43 @@ EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', nu
 [X_eq,err] = EQ(X_distorted_AGWN(1:end-mod(length(X_distorted_AGWN),8)));
 % constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction');
 % constell(X_eq);
-scatterplot(X_eq);
+% scatterplot(X_eq);
 
-carrSynch = comm.CarrierSynchronizer("Modulation", modulation);
+carrSynch = comm.CarrierSynchronizer("Modulation", modulation,"SamplesPerSymbol", SIG.Sps);
 
 [X_eq, phEst] = carrSynch(X_eq(1:end-mod(length(X_eq),8)));
 fprintf('The random phase recovered is (degrees): %d\n', (mean(phEst) *180 /pi));
-constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-constell2(X_eq);
+% constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+% constell2(X_eq);
 
 transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
 X_eq = X_eq(transient_Xpol+1:end-transient_Xpol);
 X_eq = X_eq(1:end-mod(length(X_eq),8));
-constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-constell3(X_eq);
+% constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+% constell3(X_eq);
 
+X_2Sps = downsample(X_eq, SpS_down);
+% constell4 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+% constell4(X_2Sps);
+
+Y_2Sps =X_2Sps; %Just to give it a value, for the moment i test only the X_pol
+
+[counts, binEdges] = histcounts(angle(X_2Sps(1:2:end)), 12, 'Normalization', 'probability');
+if max(counts) > .17
+    fprintf('The tracked moduluation is: QPSK\n');
+    M = 4;
+    [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_2Sps,Y_2Sps);
+%     X_demappedBits_2 = pskdemod(X_2Sps(1:2:end),M, pi/4); it doesn't demodulate in the same way as our function
+else
+    fprintf('The tracked moduluation is: 16-QAM\n');
+    M = 16;
+%     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
+ [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_2Sps,Y_2Sps);
+end
+
+
+X_BER = sum(~isequal(X_demappedSymb(1:length(SIG.Xpol.decSymbols)), SIG.Xpol.decSymbols))/length(SIG.Xpol.txSymb);
+fprintf('The SER on Xpol is: %.9f\n', X_BER);
 % scatterplot(X_eq);
 % eyediagram(X_eq,2*SpS_down);
 
