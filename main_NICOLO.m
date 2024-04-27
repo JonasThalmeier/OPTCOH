@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "16-QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
@@ -34,10 +34,10 @@ rxSig_Xpol = conv(PulseShaping.b_coeff, SIG.Xpol.txSig);
 rxSig_Ypol = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 
 % Create delay and phase convolved signals
-[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
+%[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
 % Adding the noise
-[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 20);
+[X_distorted_AGWN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig,SIG.Sps, M, 20);
 %[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 15);
 
 %----------------Pulse shaping and Downsample the signal-------------------
@@ -84,22 +84,23 @@ EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', nu
 [X_eq,err] = EQ(X_distorted_AGWN(1:end-mod(length(X_distorted_AGWN),8)));
 % constell = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'Before phase correction');
 % constell(X_eq);
-% scatterplot(X_eq);
+scatterplot(X_eq);
 
-carrSynch = comm.CarrierSynchronizer("Modulation", modulation,"SamplesPerSymbol", SIG.Sps);
+%carrSynch = comm.CarrierSynchronizer("Modulation", modulation,"SamplesPerSymbol", SIG.Sps);
 
-[X_eq, phEst] = carrSynch(X_eq(1:end-mod(length(X_eq),8)));
-fprintf('The random phase recovered is (degrees): %d\n', (mean(phEst) *180 /pi));
+%[X_eq, phEst] = carrSynch(X_eq(1:end-mod(length(X_eq),8)));
+%fprintf('The random phase recovered is (degrees): %d\n', (mean(phEst) *180 /pi));
 % constell2 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
 % constell2(X_eq);
 
-transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
-X_eq = X_eq(transient_Xpol+1:end-transient_Xpol);
-X_eq = X_eq(1:end-mod(length(X_eq),8));
-% constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SIG.Sps, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
-% constell3(X_eq);
-
 X_2Sps = downsample(X_eq, SpS_down);
+
+transient_Xpol = abs(finddelay(X_2Sps(1:65536), SIG.Xpol.txSymb));
+X_2Sps = X_2Sps(transient_Xpol+1:end-transient_Xpol);
+constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 2, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
+constell3(X_2Sps);
+
+
 % constell4 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', SpS_up, 'ReferenceConstellation', constellation, 'Title', 'After phase correction');
 % constell4(X_2Sps);
 
@@ -119,8 +120,8 @@ else
 end
 
 
-X_BER = sum(~isequal(X_demappedSymb(1:length(SIG.Xpol.decSymbols)), SIG.Xpol.decSymbols))/length(SIG.Xpol.txSymb);
-fprintf('The SER on Xpol is: %.9f\n', X_BER);
+X_SER = sum(X_demappedSymb(1:length(SIG.Xpol.decSymbols)) ~= SIG.Xpol.decSymbols)/length(SIG.Xpol.txSymb);
+fprintf('The SER on Xpol is: %.9f\n', X_SER);
 % scatterplot(X_eq);
 % eyediagram(X_eq,2*SpS_down);
 
