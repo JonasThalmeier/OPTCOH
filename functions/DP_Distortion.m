@@ -7,7 +7,7 @@ delay = randi(50,1);
 
 fprintf('The random delay introduced is (x8): %d\n', delay);
 
-phase = randi(181,1);
+phase = randi(361,1);
 fprintf('The random phase introduced is (degrees): %d\n', (phase-1));
 phase = (phase-1) *pi / 180; %radians
 
