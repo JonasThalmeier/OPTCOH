@@ -15,43 +15,33 @@ else
     M = 16;
 end
 
-figure();
-scatter(real(SIG.Xpol.txSig), imag(SIG.Xpol.txSig));
+% Create delay and phase convolved signals
+[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig,SIG.Ypol.txSig);
 
 %add chromatic dispersion
-[X_CD,Y_CD]=Chromatic_Dispersion(SIG.Xpol.txSig, SIG.Ypol.txSig, SIG.Sps, 1);
+[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
 
-figure();
-scatter(real(X_CD), imag(X_CD));
-
-
-
-% Create delay and phase convolved signals
-[X_distorted, Y_distorted] = DP_Distortion(X_CD,Y_CD);
-
-% Adding the noise
-[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 2);
-[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 2);
-
-% %----------------Compensation for CD-------------------
-% %add cchromatic dispersion
-% [X_CD,Y_CD]=Chromatic_Dispersion(X_CD, Y_CD,SIG.Sps, 2);
-% 
+% To see CD effect
 % figure();
 % scatter(real(X_CD), imag(X_CD));
-% fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
 
-%----------------Pulse shaping and Downsample the signal-------------------
-X_distorted_AWGN = conv(PulseShaping.b_coeff, X_CD);
-Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_CD);
+% Adding the noise
+[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD,SIG.Sps, M, 20);
+[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD,SIG.Sps, M, 20);
 
-%----------------Compensation for CD-------------------
+% %----------------Compensation for CD-------------------
 %add cchromatic dispersion
 [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN,SIG.Sps, 2);
 
-figure();
-scatter(real(Y_CD), imag(Y_CD));
+% To visually see the recovery
+% figure();
+% scatter(real(X_CD), imag(X_CD));
+%fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
+
 %%
+%----------------Pulse shaping and Downsample the signal-------------------
+X_distorted_AWGN = conv(PulseShaping.b_coeff, X_CD);
+Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_CD);
 
 %---------------------------EQ---------------------------------------------
 %From 15 numtaps are the best for qpsk, also for qam, but 60 and 120 seem
