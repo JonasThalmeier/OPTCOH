@@ -19,19 +19,19 @@ end
 [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig,SIG.Ypol.txSig);
 
 %add chromatic dispersion
-[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
+% [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
 
 % To see CD effect
 % figure();
 % scatter(real(X_CD), imag(X_CD));
 
 % Adding the noise
-[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD,SIG.Sps, M, 20);
-[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD,SIG.Sps, M, 20);
+[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 8-2);
+[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 8-2);
 
 % %----------------Compensation for CD-------------------
 %add cchromatic dispersion
-[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN,SIG.Sps, 2);
+% [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN,SIG.Sps, 2);
 
 % To visually see the recovery
 % figure();
@@ -40,15 +40,15 @@ end
 
 %%
 %----------------Pulse shaping and Downsample the signal-------------------
-X_distorted_AWGN = conv(PulseShaping.b_coeff, X_CD);
-Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_CD);
+X_distorted_AWGN = conv(PulseShaping.b_coeff, X_distorted_AWGN);
+Y_distorted_AWGN = conv(PulseShaping.b_coeff, Y_distorted_AWGN);
 
 %---------------------------EQ---------------------------------------------
 %From 15 numtaps are the best for qpsk, also for qam, but 60 and 120 seem
 %better. The reference tap for qpsk are 1,3,65,121.
 if r == 1
     constellation = pskmod(0:3, 4, pi/4);
-    stepsize = 1e-3; %best result
+    stepsize = 1e-4; %best result
     numtaps = 9;
     referencetap = (numtaps-1)/2;
     modulation = 'QPSK';
@@ -61,8 +61,8 @@ else
 end
 
 aw = true;
-X_dist_2SpS = X_CD(1:4:end);
-Y_dist_2SpS = Y_CD(1:4:end);
+X_dist_2SpS = X_distorted_AWGN(1:4:end);
+Y_dist_2SpS = Y_distorted_AWGN(1:4:end);
 
 EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap, 'InputDelay', 0);
 [X_eq,errX] = EQ(X_dist_2SpS(1:end-mod(length(X_dist_2SpS),2)));
