@@ -18,7 +18,7 @@ end
 %[rx_XPol, rx_YPol] = Matched_filtering(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
 % Create delay and phase convolved signals
-[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
+% [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
 %add chromatic dispersion
 % [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
@@ -28,8 +28,8 @@ end
 % scatter(real(X_CD), imag(X_CD));
 
 % Adding the noise
-[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted,SIG.Sps, M, 8);
-[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted,SIG.Sps, M, 8);
+[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig,SIG.Sps, M, 18);
+[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(SIG.Ypol.txSig,SIG.Sps, M, 18);
 
 % %----------------Compensation for CD-------------------
 %add cchromatic dispersion
@@ -39,27 +39,28 @@ end
 % figure();
 % scatter(real(X_CD), imag(X_CD));
 %fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
-%%
+
 %------------------ Matched Flitering ---------------------
 X_distorted_AWGN = downsample(X_distorted_AWGN, 4);
 Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 
-[X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, Y_distorted_AWGN, PulseShaping.b_coeff);
+ [X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, X_distorted_AWGN, PulseShaping.b_coeff);
 %X_delay = finddelay(X_matched(1:65536), SIG.Xpol.txSymb);
 %fprintf("%d\n", abs(X_delay));
-scatterplot(X_matched(:,1));
-
+% X_matched = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
+% Y_matched = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
+scatterplot(X_matched(1:2:end));
 %%
 %------------------Delay&Phase recovery ---------------------
 
-carrSynch = comm.CarrierSynchronizer("Modulation", modulation,"SamplesPerSymbol", 1);
+carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 2);
 [X_eq, phEstX] = carrSynch(X_matched);
 [Y_eq, phEstY] = carrSynch(Y_matched);
 
-X_avg_amp = mean(abs(X_consolidated))/sqrt(2);
+X_avg_amp = mean(abs(X_eq))/sqrt(2);
 X_rotation = zeros(4,1);
-X_delay = zeros(4,1);
-Y_avg_amp = mean(abs(X_consolidated))/sqrt(2);
+Xdelay = zeros(4,1);
+Y_avg_amp = mean(abs(Y_eq))/sqrt(2);
 Y_rotation = zeros(4,1);
 Y_delay = zeros(4,1);
 
