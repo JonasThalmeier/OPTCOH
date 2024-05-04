@@ -18,7 +18,7 @@ end
 %[rx_XPol, rx_YPol] = Matched_filtering(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
 % Create delay and phase convolved signals
-% [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
+[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
 %add chromatic dispersion
 % [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
@@ -28,8 +28,8 @@ end
 % scatter(real(X_CD), imag(X_CD));
 
 % Adding the noise
-[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig,SIG.Sps, M, 18);
-[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(SIG.Ypol.txSig,SIG.Sps, M, 18);
+[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted, SIG.Sps, M, 18);
+[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted, SIG.Sps, M, 18);
 
 % %----------------Compensation for CD-------------------
 %add cchromatic dispersion
@@ -44,44 +44,55 @@ end
 X_distorted_AWGN = downsample(X_distorted_AWGN, 4);
 Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 
- [X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, X_distorted_AWGN, PulseShaping.b_coeff);
+[X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, Y_distorted_AWGN, PulseShaping.b_coeff);
 %X_delay = finddelay(X_matched(1:65536), SIG.Xpol.txSymb);
 %fprintf("%d\n", abs(X_delay));
 % X_matched = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 % Y_matched = conv(PulseShaping.b_coeff, SIG.Ypol.txSig);
 scatterplot(X_matched(1:2:end));
-%%
+length(X_matched(1:2:end))
 %------------------Delay&Phase recovery ---------------------
 
 carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 2);
 [X_eq, phEstX] = carrSynch(X_matched);
 [Y_eq, phEstY] = carrSynch(Y_matched);
+X_eq = X_eq(1:2:end);
+scatterplot(X_eq);
 
-X_avg_amp = mean(abs(X_eq))/sqrt(2);
-X_rotation = zeros(4,1);
-Xdelay = zeros(4,1);
-Y_avg_amp = mean(abs(Y_eq))/sqrt(2);
-Y_rotation = zeros(4,1);
-Y_delay = zeros(4,1);
+length(X_eq)
 
-for idx=1:4
-    Xrotated = X_eq.*exp(1i*idx*pi/2);
-    X_delay(idx,:) = finddelay(Xrotated, SIG.Xpol.txSymb);
-    %Xrotated = circshift(Xrotated,Xdelay(idx));
-    Xrotated = Xrotated(Xdelay(idx,:)+1:end);
-    X_rotation(idx)=std(Xrotated-X_avg_amp.*SIG.Xpol.txSymb);
-    Yrotated = Y_eq.*exp(1i*idx*pi/2);
-    Y_delay(idx,:) = finddelay(Yrotated, SIG.Ypol.txSymb);
-    %Yrotated = circshift(Yrotated,Ydelay(idx));
-    Yrotated = Yrotated(Ydelay(idx,:)+1:end);
-    Y_rotation(idx)=std(Yrotated-Y_avg_amp.*SIG.Ypol.txSymb);
+for i=0:pi/2:3/2*pi
+
+fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+
+fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
+
+transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
+fprintf('%d\n', transient_Xpol)
+X_RX = X_eq*exp(1i*i);
+X_RX = X_RX(transient_Xpol+1:end);
+% constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After transient correction');
+% constell3(X_eq);
+scatterplot(X_RX);
+
+Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
+
+[counts, binEdges] = histcounts(angle(X_eq(1:2:end)), 12, 'Normalization', 'probability');
+if max(counts) > .17
+    fprintf('The tracked moduluation is: QPSK\n');
+      [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX,Y_2Sps);
+%     X_demappedBits_2 = pskdemod(X_2Sps(1:2:end),M, pi/4); it doesn't demodulate in the same way as our function
+else
+    fprintf('The tracked moduluation is: 16-QAM\n');
+   %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
+ [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_2Sps);
 end
-[M I] = min(X_rotation);
-X_consolidated_recovered = circshift(X_consolidated.*exp(1i*I*pi/2), Xdelay(I));
-[M I] = min(X_rotation);
-Y_consolidated_recovered = circshift(Y_consolidated.*exp(1i*I*pi/2), Ydelay(I));
-scatterplot(X_consolidated_recovered)
 
+  X_BER = sum(sum(X_demappedBits(1:65536,:) ~= SIG.Xpol.bits))/(length(SIG.Xpol.bits));
+  fprintf('The BER on Xpol is: %.26f\n', X_BER);
+
+end
+%%
 %-------------------Demapping------------
 
 if r == 1
@@ -110,23 +121,6 @@ else
     fprintf('Bit Error Rate (BER) for X polariztion: %e\n', BER_Xpol);
 end
 
-if size(Y_demappedBits) ~= size(SIG.Ypol.bits)
-    error('Arrays have different sizes.');
-else
-    % Calculate the number of bit errors
-    bitErrors_Ypol = sum(sum(Y_demappedBits ~= SIG.Ypol.bits));
-
-    % Calculate the total number of bits
-    totalBits_Ypol = numel(Y_demappedBits);
-
-    % Calculate the Bit Error Rate (BER)
-    BER_Ypol = bitErrors_Ypol / totalBits_Ypol;
-
-    % Display the results
-    fprintf('Total number of bits for Y polarization: %d\n', totalBits_Ypol);
-    fprintf('Number of bit errors for Y polarization: %d\n', bitErrors_Ypol);
-    fprintf('Bit Error Rate (BER) for Y polariztion: %e\n', BER_Ypol);
-end
 
 %%
 %---------------------------EQ---------------------------------------------
