@@ -39,7 +39,7 @@ end
 % figure();
 % scatter(real(X_CD), imag(X_CD));
 %fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
-
+%%
 %------------------ Matched Flitering ---------------------
 X_distorted_AWGN = downsample(X_distorted_AWGN, 4);
 Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
