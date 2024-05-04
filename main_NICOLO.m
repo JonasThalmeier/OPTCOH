@@ -15,7 +15,8 @@ else
     M = 16;
 end
 
-[rx_XPol, rx_XPol] = Matched_filtering(SIG.Xpol.txSig, SIG.Ypol.txSig);
+%[rx_XPol, rx_YPol] = Matched_filtering(SIG.Xpol.txSig, SIG.Ypol.txSig);
+
 % Create delay and phase convolved signals
 [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
@@ -40,11 +41,13 @@ end
 %fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
 
 %------------------ Matched Flitering ---------------------
+X_distorted_AWGN = downsample(X_distorted_AWGN, 4);
+Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 
 [X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, Y_distorted_AWGN, PulseShaping.b_coeff);
-X_delay = finddelay(X_matched(1:65536), SIG.Xpol.txSymb);
-fprintf("%d\n", abs(X_delay));
-scatterplot(X_matched(abs(X_delay)+1:8:end));
+%X_delay = finddelay(X_matched(1:65536), SIG.Xpol.txSymb);
+%fprintf("%d\n", abs(X_delay));
+scatterplot(X_matched(:,1));
 
 %%
 %------------------Delay&Phase recovery ---------------------
