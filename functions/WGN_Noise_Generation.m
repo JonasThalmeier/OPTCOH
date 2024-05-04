@@ -1,6 +1,6 @@
 function [delay_phase_noise_distorted_RX_Apol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Apol,SpS, M, EbN0)
 
-Nbit = log2(M);
+Nbit = 2*log2(M);
 %EbN0 = 30; %dB
 EbN0_lin = 10^(EbN0/10);
 Nsamples = length(delay_phase_distorted_RX_Apol);
