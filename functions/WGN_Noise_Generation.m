@@ -18,7 +18,7 @@ EbN0_lin = 10^(EbN0/10);
 SignalPower=mean(abs(delay_phase_distorted_RX_Apol).^2);
 Bsim = SpS * Rs;
 N0 = SignalPower / (2*EbN0_lin*Rs);
-Tot_power_noise = 2*N0*Bsim;
+Tot_power_noise = 1/2*N0*Bsim;
 noise_power_perquad_perpol = Tot_power_noise/4;
 sigma = sqrt(noise_power_perquad_perpol);
 
