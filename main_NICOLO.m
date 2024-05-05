@@ -34,8 +34,8 @@ OSNR_dB = 2:10;
 X_Ber_Tot = zeros(1,length(OSNR_dB));
 
 for OSNR_dB_i = OSNR_dB
-[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted, SIG.Sps, M, OSNR_dB_i);
-[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted, SIG.Sps, M, OSNR_dB_i);
+[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted, SIG.Sps, M, OSNR_dB_i, SIG.symbolRate);
+[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted, SIG.Sps, M, OSNR_dB_i, SIG.symbolRate);
 
 % %----------------Compensation for CD-------------------
 %add cchromatic dispersion
