@@ -17,8 +17,8 @@ Pulse_Shaping = downsample(Pulse_Shaping, 4);
 % X_matched = ifft(X_matched_f);
 % Y_matched = ifft(Y_matched_f);
 
-X_matched = fftfilt(conj(Pulse_Shaping), X_pol);
-Y_matched = fftfilt(conj(Pulse_Shaping), Y_pol);
+X_matched = fftfilt(conj(fliplr(Pulse_Shaping)), X_pol);
+Y_matched = fftfilt(conj(fliplr(Pulse_Shaping)), Y_pol);
 
 
 end

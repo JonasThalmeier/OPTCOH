@@ -80,7 +80,6 @@ X_RX = X_RX(transient_Xpol+1:end);
 
 Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
 
-[counts, binEdges] = histcounts(angle(X_eq(1:2:end)), 12, 'Normalization', 'probability');
 if r==1
     fprintf('The tracked moduluation is: QPSK\n');
       [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX,Y_2Sps);

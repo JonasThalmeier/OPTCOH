@@ -22,7 +22,7 @@ Tot_power_noise = 1/2*N0*Bsim;
 noise_power_perquad_perpol = Tot_power_noise/4;
 sigma = sqrt(noise_power_perquad_perpol);
 
-Noise = sigma*randn(Nsamples,1)+1i*sigma*randn(Nsamples,1);
+Noise = sigma*randn(Nsamples,1)/sqrt(2)+1i*sigma*randn(Nsamples,1)/sqrt(2);
 
 
 fprintf('The power noise generated is %.4f dBm\n', 10*log10(noise_power_perquad_perpol));
