@@ -52,8 +52,11 @@ Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 
 [X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, Y_distorted_AWGN, PulseShaping.b_coeff);
 
-%scatterplot(X_matched(1:2:end));
-
+scatterplot(X_matched(1:2:end));
+if (OSNR_dB_i==20)
+    scatterplot(X_matched(1:2:end));
+pause;
+end
 %------------------Delay&Phase recovery ---------------------
 
 carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 2);
@@ -83,7 +86,8 @@ Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
 if r==1
     fprintf('The tracked moduluation is: QPSK\n');
       [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX,Y_2Sps);
-%     X_demappedBits_2 = pskdemod(X_2Sps(1:2:end),M, pi/4); it doesn't demodulate in the same way as our function
+%       X_demappedBits = pskdemod(X_RX,M, pi/4*7); %it doesn't demodulate in the same way as our function
+%       X_demappedBits = From_MATLAB_pskdemod(X_demappedBits);
 else
     fprintf('The tracked moduluation is: 16-QAM\n');
    %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
