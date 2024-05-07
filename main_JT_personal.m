@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "16-QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -30,85 +30,88 @@ TX_BITS_Xpol = [SIG.Xpol.bits; SIG.Xpol.bits; SIG.Xpol.bits; SIG.Xpol.bits; SIG.
 % scatter(real(X_CD), imag(X_CD));
 
 % Adding the noise
-OSNR_dB = 1:15;
+OSNR_dB = 9:16;
 X_Ber_Tot = zeros(1,length(OSNR_dB));
 
 % X_distorted = SIG.Xpol.txSig;
 % Y_distorted = SIG.Ypol.txSig;
 
-for OSNR_dB_i = OSNR_dB
-[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted, SIG.Sps, M, OSNR_dB_i, SIG.symbolRate);
-[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted, SIG.Sps, M, OSNR_dB_i, SIG.symbolRate);
+for OSNR_dB_i = 1: length(OSNR_dB)
 
-% %----------------Compensation for CD-------------------
-%add cchromatic dispersion
-% [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN,SIG.Sps, 2);
+    OSNR_dB_i_b = OSNR_dB(OSNR_dB_i);
+    [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted, SIG.Sps, M, OSNR_dB_i_b, SIG.symbolRate);
+    [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_distorted, SIG.Sps, M, OSNR_dB_i_b, SIG.symbolRate);
 
-% To visually see the recovery
-% figure();
-% scatter(real(X_CD), imag(X_CD));
-%fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
+    % %----------------Compensation for CD-------------------
+    %add cchromatic dispersion
+    % [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN,SIG.Sps, 2);
 
-%------------------ Matched Flitering ---------------------
-X_distorted_AWGN = downsample(X_distorted_AWGN, 4);
-Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
+    % To visually see the recovery
+    % figure();
+    % scatter(real(X_CD), imag(X_CD));
+    %fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
 
-[X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, Y_distorted_AWGN, PulseShaping.b_coeff);
+    %------------------ Matched Flitering ---------------------
+    X_distorted_AWGN = downsample(X_distorted_AWGN, 4);
+    Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 
-% scatterplot(X_matched(1:2:end));
-% if (OSNR_dB_i==20)
-%     scatterplot(X_matched(1:2:end));
-% pause;
-% end
-%------------------Delay&Phase recovery ---------------------
-%
-[X_matched,Y_matched] = samp_time_recovery(X_matched,Y_matched,8);
-carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 100);
-[X_eq, phEstX] = carrSynch(X_matched);
-[Y_eq, phEstY] = carrSynch(Y_matched);
-% X_eq = X_matched(1:2:end); % era X_eq
-X_eq = X_eq(1:2:end); % era X_eq
+    [X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, Y_distorted_AWGN, PulseShaping.b_coeff);
 
-X_BER = zeros(1,4);
-j=1;
+    % scatterplot(X_matched(1:2:end));
+    % if (OSNR_dB_i==20)
+    %     scatterplot(X_matched(1:2:end));
+    % pause;
+    % end
+    %------------------Delay&Phase recovery ---------------------
+    %
+    [X_matched,Y_matched] = samp_time_recovery(X_matched,Y_matched,8);
+    carrSynch = comm.CarrierSynchronizer("Modulation", "QAM","SamplesPerSymbol", 1, 'DampingFactor', 1);
+    [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
+    [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
+    % X_eq = X_matched(1:2:end); % era X_eq
+    % X_eq = X_eq(1:2:end); % era X_eq
 
-for i=0:pi/2:3/2*pi
+    X_BER = zeros(1,4);
+    j=1;
 
-fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+    for i=0:pi/2:3/2*pi
 
-% fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
+        fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
 
-transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
-fprintf('%d\n', transient_Xpol)
-X_RX = X_eq*exp(1i*i);
-X_RX = X_RX(transient_Xpol+1:end);
-% constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After transient correction');
-% constell3(X_eq);
-%scatterplot(X_RX);
+        % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
 
-Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
+        transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
+        fprintf('%d\n', transient_Xpol)
+        X_RX = X_eq*exp(1i*i);
+        X_RX = X_RX(transient_Xpol+1:end);
+        % constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After transient correction');
+        % constell3(X_eq);
+        %scatterplot(X_RX);
 
-if r==1
-    fprintf('The tracked moduluation is: QPSK\n');
-      [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX,Y_2Sps);
-%       X_demappedBits = pskdemod(X_RX,M, pi/4*7); %it doesn't demodulate in the same way as our function
-%       X_demappedBits = From_MATLAB_pskdemod(X_demappedBits);
-else
-    fprintf('The tracked moduluation is: 16-QAM\n');
-   %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
- [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_2Sps);
+        Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
+
+        if r==1
+            fprintf('The tracked moduluation is: QPSK\n');
+            [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX,Y_2Sps);
+            %       X_demappedBits = pskdemod(X_RX,M, pi/4*7); %it doesn't demodulate in the same way as our function
+            %       X_demappedBits = From_MATLAB_pskdemod(X_demappedBits);
+        else
+            fprintf('The tracked moduluation is: 16-QAM\n');
+            %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
+            [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_2Sps);
+        end
+
+        X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
+        j=j+1;
+
+    end
+
+    X_Ber_Tot(OSNR_dB_i) = min(X_BER);
+    fprintf('The BER on Xpol is: %.26f\n', X_Ber_Tot(OSNR_dB_i));
 end
 
-  X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
-   j=j+1;
-
-end
-
-X_Ber_Tot(OSNR_dB_i) = min(X_BER);
-fprintf('The BER on Xpol is: %.26f\n', X_Ber_Tot(OSNR_dB_i));
-end
-
-BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
+% BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
+BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
 
 figure();
 semilogy(OSNR_dB,X_Ber_Tot, 'Marker','o');
@@ -206,35 +209,35 @@ title('Time-Varying Channel Without Retraining')
 
 for i=0:pi/2:3/2*pi
 
-fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+    fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
 
-fprintf('The total phase recovered is (degrees): %d\n', (mean(phEst+i) *180 /pi));
+    fprintf('The total phase recovered is (degrees): %d\n', (mean(phEst+i) *180 /pi));
 
-X_eq = X_eq*exp(1i*i);
-transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
-X_eq = X_eq(transient_Xpol+1:end-transient_Xpol);
-% constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After transient correction');
-% constell3(X_eq);
-scatterplot(X_eq);
+    X_eq = X_eq*exp(1i*i);
+    transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
+    X_eq = X_eq(transient_Xpol+1:end-transient_Xpol);
+    % constell3 = comm.ConstellationDiagram('NumInputPorts', 1, 'SamplesPerSymbol', 1, 'ReferenceConstellation', constellation, 'Title', 'After transient correction');
+    % constell3(X_eq);
+    scatterplot(X_eq);
 
-Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
+    Y_2Sps =X_eq; %Just to give it a value, for the moment i test only the X_pol
 
-[counts, binEdges] = histcounts(angle(X_eq(1:2:end)), 12, 'Normalization', 'probability');
-if max(counts) > .17
-    fprintf('The tracked moduluation is: QPSK\n');
-    M = 4;
-    [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_eq,Y_2Sps);
-%     X_demappedBits_2 = pskdemod(X_2Sps(1:2:end),M, pi/4); it doesn't demodulate in the same way as our function
-else
-    fprintf('The tracked moduluation is: 16-QAM\n');
-    M = 16;
-%     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
- [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_eq,Y_2Sps);
-end
+    [counts, binEdges] = histcounts(angle(X_eq(1:2:end)), 12, 'Normalization', 'probability');
+    if max(counts) > .17
+        fprintf('The tracked moduluation is: QPSK\n');
+        M = 4;
+        [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_eq,Y_2Sps);
+        %     X_demappedBits_2 = pskdemod(X_2Sps(1:2:end),M, pi/4); it doesn't demodulate in the same way as our function
+    else
+        fprintf('The tracked moduluation is: 16-QAM\n');
+        M = 16;
+        %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
+        [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_eq,Y_2Sps);
+    end
 
 
-X_BER = sum(sum(X_demappedBits(1:length(SIG.Xpol.bits),:) ~= SIG.Xpol.bits))/(length(SIG.Xpol.bits)*4);
-fprintf('The BER on Xpol is: %.26f\n', X_BER);
+    X_BER = sum(sum(X_demappedBits(1:length(SIG.Xpol.bits),:) ~= SIG.Xpol.bits))/(length(SIG.Xpol.bits)*4);
+    fprintf('The BER on Xpol is: %.26f\n', X_BER);
 
 end
 % scatterplot(X_eq);
