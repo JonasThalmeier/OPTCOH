@@ -37,12 +37,15 @@ erX = real(conj(midX).*(lateX-earlyX));
 erY = real(conj(midY).*(lateY-earlyY));
 N = length(erX)/Sps;
 cumEr = zeros(Sps,1);
-for k=1:Sps+1
+for k=1:Sps
     cumEr(k) = (sum(erX(k:Sps:end))+sum(erY(k:Sps:end)))/N;
 end
 [M IND] = min(cumEr);
+if IND==1
+    IND = IND+8;
+end
 
-%!!!!Indexing Error sometimes!!!!!
+%!!!!Indexing Error sometimes!!!!! Not anymore?
 downsampledSig_Xpol = Xpol(IND-1:Sps/2:end);
 downsampledSig_Ypol = Ypol(IND-1:Sps/2:end);
 end

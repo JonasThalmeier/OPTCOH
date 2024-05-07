@@ -3,7 +3,7 @@ function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Dist
 
 %delay = randi(floor(length(TX_Xpol)/160),1); % maximum delay of half a period
 %delay = randi(400,1);
-delay = 8 * randi(50,1);
+delay = 1 * randi(8*50,1);
 
 fprintf('The random delay introduced is (x8): %d\n', delay);
 
