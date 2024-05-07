@@ -61,8 +61,8 @@ Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 % pause;
 % end
 %------------------Delay&Phase recovery ---------------------
-% 
-carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 2);
+%
+carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 100);
 [X_eq, phEstX] = carrSynch(X_matched);
 [Y_eq, phEstY] = carrSynch(Y_matched);
 % X_eq = X_matched(1:2:end); % era X_eq
