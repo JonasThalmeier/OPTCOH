@@ -30,8 +30,11 @@ TX_BITS_Xpol = [SIG.Xpol.bits; SIG.Xpol.bits; SIG.Xpol.bits; SIG.Xpol.bits; SIG.
 % scatter(real(X_CD), imag(X_CD));
 
 % Adding the noise
-OSNR_dB = 2:10;
+OSNR_dB = 1:10;
 X_Ber_Tot = zeros(1,length(OSNR_dB));
+
+% X_distorted = SIG.Xpol.txSig;
+% Y_distorted = SIG.Ypol.txSig;
 
 for OSNR_dB_i = OSNR_dB
 [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_distorted, SIG.Sps, M, OSNR_dB_i, SIG.symbolRate);
@@ -52,17 +55,18 @@ Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 
 [X_matched,Y_matched] = Matched_filtering(X_distorted_AWGN, Y_distorted_AWGN, PulseShaping.b_coeff);
 
-scatterplot(X_matched(1:2:end));
-if (OSNR_dB_i==20)
-    scatterplot(X_matched(1:2:end));
-pause;
-end
+% scatterplot(X_matched(1:2:end));
+% if (OSNR_dB_i==20)
+%     scatterplot(X_matched(1:2:end));
+% pause;
+% end
 %------------------Delay&Phase recovery ---------------------
-
+% 
 carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 2);
 [X_eq, phEstX] = carrSynch(X_matched);
 [Y_eq, phEstY] = carrSynch(Y_matched);
-X_eq = X_eq(1:2:end);
+% X_eq = X_matched(1:2:end); % era X_eq
+X_eq = X_eq(1:2:end); % era X_eq
 
 X_BER = zeros(1,4);
 j=1;
@@ -71,7 +75,7 @@ for i=0:pi/2:3/2*pi
 
 fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
 
-fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
+% fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
 
 transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
 fprintf('%d\n', transient_Xpol)
@@ -99,8 +103,8 @@ end
 
 end
 
-X_Ber_Tot(OSNR_dB_i-1) = min(X_BER);
-fprintf('The BER on Xpol is: %.26f\n', X_Ber_Tot(OSNR_dB_i-1));
+X_Ber_Tot(OSNR_dB_i) = min(X_BER);
+fprintf('The BER on Xpol is: %.26f\n', X_Ber_Tot(OSNR_dB_i));
 end
 
 BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));

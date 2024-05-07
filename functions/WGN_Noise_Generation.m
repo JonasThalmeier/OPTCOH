@@ -1,15 +1,16 @@
 function [delay_phase_noise_distorted_RX_Apol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Apol,SpS, M, EbN0, Rs)
 
-Nbit = 2*log2(M);
+Nbit = log2(M);
 %EbN0 = 30; %dB
 EbN0_lin = 10^(EbN0/10);
 Nsamples = length(delay_phase_distorted_RX_Apol);
 % Signal Power evaluation
 SignalPower=mean(abs(delay_phase_distorted_RX_Apol).^2);
 % Noise variance evaluation
-NoisePower = 2*SignalPower/EbN0_lin*SpS/Nbit;
+NoisePower = SignalPower/EbN0_lin*SpS/Nbit;
 % Normalized Complex WGN generation (Noise Power set to 1)
-NoiseNormalized=(randn(1,Nsamples)+1i*randn(1,Nsamples)/sqrt(2));
+% NoiseNormalized=(randn(1,Nsamples)+1i*randn(1,Nsamples)/sqrt(2));
+NoiseNormalized=(randn(1,Nsamples)+1i*randn(1,Nsamples));
 % Noise scaling to the given Eb/N0
 Noise=NoiseNormalized*sqrt(NoisePower/4); %1e-3 pratically no noise it works, 1e-2, 1e-1 too
 

@@ -11,7 +11,7 @@ phase = randi(361,1);
 fprintf('The random phase introduced is (degrees): %d\n', (phase-1));
 phase = (phase-1) *pi / 180; %radians
 
-delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phase); %add zeros at beginning to simulate delay
-delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phase);
+delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']';% .* exp(1i * phase); %add zeros at beginning to simulate delay
+delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']';% .* exp(1i * phase);
 
 end
