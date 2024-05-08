@@ -30,7 +30,7 @@ TX_BITS_Xpol = [SIG.Xpol.bits; SIG.Xpol.bits; SIG.Xpol.bits; SIG.Xpol.bits; SIG.
 % scatter(real(X_CD), imag(X_CD));
 
 % Adding the noise
-OSNR_dB = 9:16;
+OSNR_dB = 1:20;
 X_Ber_Tot = zeros(1,length(OSNR_dB));
 
 % X_distorted = SIG.Xpol.txSig;
@@ -65,9 +65,13 @@ for OSNR_dB_i = 1: length(OSNR_dB)
     %------------------Delay&Phase recovery ---------------------
     %
     [X_matched,Y_matched] = samp_time_recovery(X_matched,Y_matched,8);
-    carrSynch = comm.CarrierSynchronizer("Modulation", "QAM","SamplesPerSymbol", 1, 'DampingFactor', 1);
-    [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
-    [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
+    carrSynch = comm.CarrierSynchronizer("Modulation", "QAM","SamplesPerSymbol", 1,'DampingFactor', 5, 'NormalizedLoopBandwidth', 5e-3);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+    [X_eq, phEstX] = carrSynch(5*X_matched(1:2:end));
+    [Y_eq, phEstY] = carrSynch(5*Y_matched(1:2:end));
+    % scatterplot(X_eq(1:end));
+    % scatterplot(X_matched(1:2:end));
+
+    
     % X_eq = X_matched(1:2:end); % era X_eq
     % X_eq = X_eq(1:2:end); % era X_eq
 
@@ -111,14 +115,17 @@ for OSNR_dB_i = 1: length(OSNR_dB)
 end
 
 % BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
-BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
+BER_TH = 3/8 * erfc(sqrt(2*10.^(OSNR_dB/10)/5));
+BER_TH2 = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
 
 figure();
 semilogy(OSNR_dB,X_Ber_Tot, 'Marker','o');
-xlim([2,15]);
+% xlim([2,15]);
 grid on;
 hold on;
-semilogy(OSNR_dB,BER_TH);
+% semilogy(OSNR_dB,BER_TH);
+semilogy(OSNR_dB,BER_TH2);
+legend('sim', 'analytic');
 
 
 
