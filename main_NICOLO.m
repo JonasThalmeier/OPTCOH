@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -29,7 +29,7 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 if r==1
     OSNR_dB = 4:10;
 else
-    OSNR_dB = 8:14;
+    OSNR_dB = 10:15;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
@@ -46,6 +46,8 @@ for index = 1:length(OSNR_dB)
     
     %fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
     
+%     X_CD_rec = SIG.Xpol.txSig;
+%     Y_CD_rec = SIG.Ypol.txSig;
     %------------------ Matched Flitering ---------------------
     X_CD_rec = downsample(X_CD_rec, 4);
     Y_CD_rec = downsample(Y_CD_rec, 4);
@@ -64,7 +66,7 @@ for index = 1:length(OSNR_dB)
         [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     else
-        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 50, 'NormalizedLoopBandwidth', 5e-3);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 50);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
         [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     end
@@ -73,7 +75,9 @@ for index = 1:length(OSNR_dB)
         scatterplot(X_eq);
         title(sprintf('%s constellation of Xpol after phase recovery',MODULATIONS(r)));
     end
-    
+    %
+%     X_eq = X_matched(1:2:end);
+    %
     X_BER = zeros(1,4);
     Y_BER = zeros(1,4);
     j=1;
@@ -107,7 +111,11 @@ for index = 1:length(OSNR_dB)
     %       X_demappedBits = From_MATLAB_pskdemod(X_demappedBits);
     else
         fprintf('The tracked moduluation is: 16-QAM\n');
-       %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
+%         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
+%         X_demappedBits = qamdemod(X_RX, M, MyConst,UnitAveragePower = true, OutputType='bit', PlotConstellation=true);
+%         N = length(X_demappedBits)/4;
+%         X_demappedBits = reshape(X_demappedBits, 4, N).';
+%        
      [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
     end
     
@@ -249,10 +257,10 @@ semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
 xlim([min(OSNR_dB),15]);
 grid on;
 hold on;
-semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
+% semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
 semilogy(OSNR_dB, BER_TH, 'r');
 title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Theoretical BER', 'Interpreter', 'latex');
+% legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Theoretical BER', 'Interpreter', 'latex');
 xlabel('SNR', 'Interpreter','latex');
 hold off;
 
@@ -261,9 +269,9 @@ semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
 xlim([min(OSNR_dB),15]);
 grid on;
 hold on;
-semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
+% semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
 semilogy(OSNR_dB,BER_TH, 'r');
 title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
-legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Theoretical BER', 'Interpreter', 'latex');
+% legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Theoretical BER', 'Interpreter', 'latex');
 xlabel('SNR', 'Interpreter','latex');
 hold off;
