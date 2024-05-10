@@ -29,12 +29,12 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 if r==1
     OSNR_dB = 4:10;
 else
-    OSNR_dB = 10:15;
+    OSNR_dB = 11:16;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
 Y_Ber_Tot = zeros(1,length(OSNR_dB));
-
+%%
 for index = 1:length(OSNR_dB)
 
     [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
@@ -53,12 +53,13 @@ for index = 1:length(OSNR_dB)
     Y_CD_rec = downsample(Y_CD_rec, 4);
     
     [X_matched,Y_matched] = Matched_filtering(X_CD_rec, Y_CD_rec, PulseShaping.b_coeff);
-    
+
+      
     if (index==length(OSNR_dB))
         scatterplot(X_matched(1:2:end));
         title(sprintf('%s constellation of Xpol after matched filter %d dB of WGN',MODULATIONS(r), OSNR_dB(index)));
     end
-    
+
     %------------------Delay&Phase recovery ---------------------
     
     if r==1
@@ -66,16 +67,22 @@ for index = 1:length(OSNR_dB)
         [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     else
-        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 50);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
         [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     end
     
+    X_Power = mean(abs((X_eq)).^2);
+    X_eq = X_eq/sqrt(X_Power/10);
+
+    Y_Power = mean(abs((Y_eq)).^2);
+    Y_eq = Y_eq/sqrt(Y_Power/10);
+
     if (index==length(OSNR_dB))
         scatterplot(X_eq);
         title(sprintf('%s constellation of Xpol after phase recovery',MODULATIONS(r)));
     end
-    %
+
 %     X_eq = X_matched(1:2:end);
     %
     X_BER = zeros(1,4);
@@ -112,7 +119,7 @@ for index = 1:length(OSNR_dB)
     else
         fprintf('The tracked moduluation is: 16-QAM\n');
 %         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
-%         X_demappedBits = qamdemod(X_RX, M, MyConst,UnitAveragePower = true, OutputType='bit', PlotConstellation=true);
+%         X_demappedBits = qamdemod(X_RX, M, MyConst, OutputType='bit', PlotConstellation=true);
 %         N = length(X_demappedBits)/4;
 %         X_demappedBits = reshape(X_demappedBits, 4, N).';
 %        
@@ -137,7 +144,7 @@ end
 
 X_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
 Y_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
-
+%%
 for index = 1:length(OSNR_dB)
 
     [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
@@ -151,30 +158,64 @@ for index = 1:length(OSNR_dB)
     %---------------------------EQ---------------------------------------------
     %From 15 numtaps are the best for qpsk, also for qam, but 60 and 120 seem
     %better. The reference tap for qpsk are 1,3,65,121.
-    X_CD_rec = downsample(X_CD_rec, 4);
-    Y_CD_rec = downsample(Y_CD_rec, 4);
-
+  
     if r == 1
+
+        X_CD_rec = downsample(X_CD_rec, 4);
+        Y_CD_rec = downsample(Y_CD_rec, 4);
+
         constellation = pskmod(0:3, 4, pi/4);
         stepsize = 1e-3; %best result
         numtaps = 9;
         referencetap = (numtaps-1)/2;
+
+        EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap);
+        [X_matched,errX] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec),2))); 
+        [Y_matched,errY] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec),2))); 
+
     else
-        constellation = qammod(0:15, 16);
-        stepsize = 5e-6;
-        numtaps = 9; % bigger filter works better here
-        referencetap = (numtaps-1)/2;
+
+        X_CD_rec_1 = downsample(X_CD_rec, 4);
+        Y_CD_rec_1 = downsample(Y_CD_rec, 4);
+
+        [X_matched_1,Y_matched_1] = Matched_filtering(SIG.Xpol.txSig(1:4:end), SIG.Ypol.txSig(1:4:end), PulseShaping.b_coeff);
+
+        X_Power = mean(abs((X_CD_rec)).^2);
+        X_CD_rec_norm = X_CD_rec/sqrt(X_Power/10);
+    
+%         Y_Power = mean(abs((Y_eq)).^2);
+%         Y_eq = Y_eq/sqrt(Y_Power/10);
+
+%         X_Power = mean(abs(real(X_CD_rec)).^2);
+%         X_CD_rec_norm = X_CD_rec/X_Power;
+        %X_CD_rec_norm = downsample(X_CD_rec_norm, 4);
+               
+        transient_Xpol = abs(finddelay(X_CD_rec_norm(5:8:8*65536), SIG.Xpol.txSymb));
+
+        X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*8+1:end);
+
+        MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
+        M = 16; % Size of the QAM constellation
+        constellation = qammod(0:15, M, MyConst);
+        stepsize = 2e-4;
+        numtaps = 8; % bigger filter works better here
+        referencetap = 2;%(numtaps-1)/2;
+
+        
+        EQ = comm.LinearEqualizer('Algorithm', 'LMS', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 8, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
+        [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
+        [Y_matched,errY] = EQ(Y_CD_rec, SIG.Ypol.txSymb);
+
     end
     
-    EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap);
-    [X_matched,errX] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec),2))); 
-    [Y_matched,errY] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec),2))); 
+    transient_Xpol = abs(finddelay(X_matched(1:65536), SIG.Xpol.txSymb));
+    X_matched = X_matched(transient_Xpol+1:end);
 
     if (index==length(OSNR_dB))
         scatterplot(X_matched);
         title(sprintf('%s constellation of Xpol after CMA %d dB of WGN',MODULATIONS(r), OSNR_dB(index)));
     end
-   
+   %%
     %------------------Delay&Phase recovery ---------------------
     
     if r==1

@@ -1,7 +1,7 @@
 function [demappedBits_Xpol,demappedSymb_Xpol,demappedBits_Ypol, demappedSymb_Ypol] = QAM_16_demapping(downsampledSig_Xpol,downsampledSig_Ypol)
 % downsampledSig_Xpol = downsampledSig_Xpol(1:2:end); %downsample to 1SpS
 % downsampledSig_Ypol = downsampledSig_Ypol(1:2:end);
-division = 0.33;%(abs(real(max(downsampledSig_Xpol)))+abs(real(min(downsampledSig_Xpol))))/2; 
+division = 2; %round((abs(max(real(downsampledSig_Xpol)))+abs(min(real(downsampledSig_Xpol))))/2,2); 
 
 % Symbol Demapping
 demappedBits_Xpol = zeros(length(downsampledSig_Xpol),4); % Adjust size accordingly for bit pairs, etc.
