@@ -8,10 +8,10 @@ Nsamples = length(delay_phase_distorted_RX_Apol);
 SignalPower=mean(abs(delay_phase_distorted_RX_Apol).^2);
 % Noise variance evaluation (E_s = SignaPower*SpS; E_b = E_s/Nbit;
 % N_0=E_b/SNR; sigma^2 =N_0/2)
-NoisePower = 2*SignalPower*SpS/(Nbit*EbN0_lin);
+NoisePower = SignalPower*SpS/(EbN0_lin);
 % Normalized Complex WGN generation (Noise Power set to 1)
 % NoiseNormalized=(randn(1,Nsamples)+1i*randn(1,Nsamples)/sqrt(2));
-NoiseNormalized=(randn(1,Nsamples)+1i*randn(1,Nsamples));
+NoiseNormalized=(1/sqrt(2))*(randn(1,Nsamples)+1i*randn(1,Nsamples));
 % Noise scaling to the given Eb/N0
 Noise=NoiseNormalized*sqrt(NoisePower/4); %1e-3 pratically no noise it works, 1e-2, 1e-1 too
 
