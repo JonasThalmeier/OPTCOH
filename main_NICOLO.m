@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 2;
+r = 1;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -27,14 +27,17 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 
 % Adding the noise
 if r==1
-    OSNR_dB = 4:10;
+    OSNR_dB = 4:8;
 else
-    OSNR_dB = 11:16;
+    OSNR_dB = 11:14;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
 Y_Ber_Tot = zeros(1,length(OSNR_dB));
+
 %%
+%--------------------MATCHED FILTER ----------------------------------------
+
 for index = 1:length(OSNR_dB)
 
     [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
@@ -114,8 +117,7 @@ for index = 1:length(OSNR_dB)
     if r==1
         fprintf('The tracked moduluation is: QPSK\n');
           [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
-    %       X_demappedBits = pskdemod(X_RX,M, pi/4*7); %it doesn't demodulate in the same way as our function
-    %       X_demappedBits = From_MATLAB_pskdemod(X_demappedBits);
+  
     else
         fprintf('The tracked moduluation is: 16-QAM\n');
 %         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
@@ -123,7 +125,7 @@ for index = 1:length(OSNR_dB)
 %         N = length(X_demappedBits)/4;
 %         X_demappedBits = reshape(X_demappedBits, 4, N).';
 %        
-     [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
+        [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
     end
     
       X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
@@ -139,12 +141,17 @@ for index = 1:length(OSNR_dB)
     fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot(index));
 end
 
+
+fprintf('\n');
+
 %% 
-%---------------CMA-------------------
+%------------------------- CMA/LMS ----------------------------
+
+fprintf('-----------------CMA/LMS------------------\n');
 
 X_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
 Y_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
-%%
+
 for index = 1:length(OSNR_dB)
 
     [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
@@ -154,7 +161,6 @@ for index = 1:length(OSNR_dB)
     
     [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
     
-
     %---------------------------EQ---------------------------------------------
     %From 15 numtaps are the best for qpsk, also for qam, but 60 and 120 seem
     %better. The reference tap for qpsk are 1,3,65,121.
@@ -164,58 +170,55 @@ for index = 1:length(OSNR_dB)
         X_CD_rec = downsample(X_CD_rec, 4);
         Y_CD_rec = downsample(Y_CD_rec, 4);
 
+        X_Power = mean(abs((X_CD_rec)).^2);
+        X_CD_rec_norm = X_CD_rec/sqrt(X_Power/10);
+
+        Y_Power = mean(abs((Y_CD_rec)).^2);
+        Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/10);
+
         constellation = pskmod(0:3, 4, pi/4);
         stepsize = 1e-3; %best result
         numtaps = 9;
         referencetap = (numtaps-1)/2;
+        algorithm = 'CMA';
 
-        EQ = comm.LinearEqualizer('Algorithm', 'CMA', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap);
-        [X_matched,errX] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec),2))); 
-        [Y_matched,errY] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec),2))); 
+        EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap);
+        [X_matched,errX] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec_norm),2))); 
+        [Y_matched,errY] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec_norm),2))); 
 
     else
 
-        X_CD_rec_1 = downsample(X_CD_rec, 4);
-        Y_CD_rec_1 = downsample(Y_CD_rec, 4);
-
-        [X_matched_1,Y_matched_1] = Matched_filtering(SIG.Xpol.txSig(1:4:end), SIG.Ypol.txSig(1:4:end), PulseShaping.b_coeff);
-
         X_Power = mean(abs((X_CD_rec)).^2);
         X_CD_rec_norm = X_CD_rec/sqrt(X_Power/10);
-    
-%         Y_Power = mean(abs((Y_eq)).^2);
-%         Y_eq = Y_eq/sqrt(Y_Power/10);
 
-%         X_Power = mean(abs(real(X_CD_rec)).^2);
-%         X_CD_rec_norm = X_CD_rec/X_Power;
-        %X_CD_rec_norm = downsample(X_CD_rec_norm, 4);
-               
+        Y_Power = mean(abs((Y_CD_rec)).^2);
+        Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/10);
+    
         transient_Xpol = abs(finddelay(X_CD_rec_norm(5:8:8*65536), SIG.Xpol.txSymb));
+        transient_Ypol = abs(finddelay(Y_CD_rec_norm(5:8:8*65536), SIG.Ypol.txSymb));
 
         X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*8+1:end);
+        Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*8+1:end);
 
         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
         M = 16; % Size of the QAM constellation
         constellation = qammod(0:15, M, MyConst);
-        stepsize = 2e-4;
-        numtaps = 8; % bigger filter works better here
+        stepsize = 6e-4;
+        numtaps = 8; 
         referencetap = 2;%(numtaps-1)/2;
-
+        algorithm = 'LMS';
         
-        EQ = comm.LinearEqualizer('Algorithm', 'LMS', 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 8, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
-        [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
-        [Y_matched,errY] = EQ(Y_CD_rec, SIG.Ypol.txSymb);
+        EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 8, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
+        [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Ypol.txSymb(1:1000));
+        [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Xpol.txSymb(1:1000));
 
     end
     
-    transient_Xpol = abs(finddelay(X_matched(1:65536), SIG.Xpol.txSymb));
-    X_matched = X_matched(transient_Xpol+1:end);
-
     if (index==length(OSNR_dB))
         scatterplot(X_matched);
-        title(sprintf('%s constellation of Xpol after CMA %d dB of WGN',MODULATIONS(r), OSNR_dB(index)));
+        title(sprintf('%s constellation of Xpol after %s %d dB of WGN',MODULATIONS(r), algorithm, OSNR_dB(index)));
     end
-   %%
+
     %------------------Delay&Phase recovery ---------------------
     
     if r==1
@@ -223,10 +226,16 @@ for index = 1:length(OSNR_dB)
         [X_eq, phEstX] = carrSynch(X_matched);
         [Y_eq, phEstY] = carrSynch(Y_matched);
     else
-        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 5, 'NormalizedLoopBandwidth', 5e-3);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-        [X_eq, phEstX] = carrSynch(X_matched);
-        [Y_eq, phEstY] = carrSynch(Y_matched);
+        X_eq = X_matched;
+        Y_eq = Y_matched;
     end
+
+
+    X_Power = mean(abs((X_eq)).^2);
+    X_eq = X_eq/sqrt(X_Power/10);
+
+    Y_Power = mean(abs((Y_eq)).^2);
+    Y_eq = Y_eq/sqrt(Y_Power/10);
 
     if (index==length(OSNR_dB))
         scatterplot(X_eq);
@@ -298,10 +307,10 @@ semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
 xlim([min(OSNR_dB),15]);
 grid on;
 hold on;
-% semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
+semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
 semilogy(OSNR_dB, BER_TH, 'r');
 title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-% legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Theoretical BER', 'Interpreter', 'latex');
+legend('Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
 xlabel('SNR', 'Interpreter','latex');
 hold off;
 
@@ -310,9 +319,9 @@ semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
 xlim([min(OSNR_dB),15]);
 grid on;
 hold on;
-% semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
+semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
 semilogy(OSNR_dB,BER_TH, 'r');
 title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
-% legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Theoretical BER', 'Interpreter', 'latex');
+legend('Simulated BER - Matched filter', sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
 xlabel('SNR', 'Interpreter','latex');
 hold off;
