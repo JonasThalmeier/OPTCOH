@@ -152,8 +152,13 @@ Y_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
 % X_Ber_Tot_LMS = zeros(1,length(OSNR_dB));
 % Y_Ber_Tot_LMS = zeros(1,length(OSNR_dB));
 
-stepsize = linspace(1e-3, 1e-6, 5)
-num_taps = [5 6 7 8 9 10]
+%setting for QPSK
+% stepsize= 1e-3
+% num_taps=[8 9 10] --> best range
+
+%stting for 16 QAM
+% stepsize = 0.000750250000000000
+% num_taps = [10 11 12 13 14 15] --> best range
 
 for z = 1:length(stepsize)
     for w = 1:length(num_taps)
@@ -183,14 +188,17 @@ for z = 1:length(stepsize)
             Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
             
             constellation = pskmod(0:3, 4, pi/4);
+%             MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
+%             M = 16; % Size of the QAM constellation
+%             constellation = qammod(0:15, M, MyConst);
             stepsize1 = stepsize(z);
             numtaps1 = num_taps(:,w);
             referencetap = floor((numtaps1-1)/2);
             algorithm = 'LMS';
             
             EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize1,'NumTaps', numtaps1, 'InputSamplesPerSymbol', 2, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
-            [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Ypol.txSymb(1:1000));
-            [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Xpol.txSymb(1:1000));
+            [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
+            [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
             
             X_eq = X_matched;
             Y_eq = Y_matched;
@@ -206,21 +214,21 @@ for z = 1:length(stepsize)
             
             for i=0:pi/2:3/2*pi
                 
-                fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+                %fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
                 
                 % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
                 
                 transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
                 transient_Ypol = abs(finddelay(Y_eq(1:65536), SIG.Ypol.txSymb));
                 
-                
+                 
                 X_RX = X_eq*exp(1i*i);
                 X_RX = X_RX(transient_Xpol+1:end);
                 Y_RX = Y_eq*exp(1i*i);
                 Y_RX = Y_RX(transient_Ypol+1:end);
                 
                 [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
-                
+                %[X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX, Y_RX);
                 
                 X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
                 Y_BER(j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
