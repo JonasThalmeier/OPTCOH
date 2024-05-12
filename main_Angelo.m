@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -157,8 +157,8 @@ Y_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
 % num_taps=[8 9 10] --> best range
 
 %stting for 16 QAM
-% stepsize = 0.000750250000000000
-% num_taps = [10 11 12 13 14 15] --> best range
+stepsize = 0.000750250000000000;
+num_taps = [10 11 12 13 14 15];% --> best range
 
 for z = 1:length(stepsize)
     for w = 1:length(num_taps)
@@ -187,10 +187,10 @@ for z = 1:length(stepsize)
             X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
             Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
             
-            constellation = pskmod(0:3, 4, pi/4);
-%             MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
-%             M = 16; % Size of the QAM constellation
-%             constellation = qammod(0:15, M, MyConst);
+%             constellation = pskmod(0:3, 4, pi/4);
+            MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
+            M = 16; % Size of the QAM constellation
+            constellation = qammod(0:15, M, MyConst);
             stepsize1 = stepsize(z);
             numtaps1 = num_taps(:,w);
             referencetap = floor((numtaps1-1)/2);
@@ -227,8 +227,8 @@ for z = 1:length(stepsize)
                 Y_RX = Y_eq*exp(1i*i);
                 Y_RX = Y_RX(transient_Ypol+1:end);
                 
-                [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
-                %[X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX, Y_RX);
+%                 [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
+                [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX, Y_RX);
                 
                 X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
                 Y_BER(j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
