@@ -84,7 +84,7 @@ for index = 1:length(OSNR_dB)
         [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     else
-        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 150, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
         [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     end
@@ -165,6 +165,8 @@ fprintf('-----------------CMA/LMS------------------\n');
 
 X_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
 Y_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
+X_Ber_Tot_LMS = zeros(1,length(OSNR_dB));
+Y_Ber_Tot_LMS = zeros(1,length(OSNR_dB));
 
 for index = 1:length(OSNR_dB)
 
@@ -181,6 +183,14 @@ for index = 1:length(OSNR_dB)
   
     if r == 1
 
+        if(rem(length(X_CD_rec),2)==0)
+            X_CD_rec = X_CD_rec(65536*8+4:end);
+            Y_CD_rec = Y_CD_rec(65536*8+4:end);
+        else
+            X_CD_rec = X_CD_rec(65536*8+3:end);
+            Y_CD_rec = Y_CD_rec(65536*8+3:end);
+        end
+
         X_CD_rec = downsample(X_CD_rec, 4);
         Y_CD_rec = downsample(Y_CD_rec, 4);
 
@@ -189,6 +199,12 @@ for index = 1:length(OSNR_dB)
 
         Y_Power = mean(abs((Y_CD_rec)).^2);
         Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/10);
+    
+        transient_Xpol = abs(finddelay(X_CD_rec_norm(1:2:65536), SIG.Xpol.txSymb));
+        transient_Ypol = abs(finddelay(Y_CD_rec_norm(1:2:65536), SIG.Ypol.txSymb));
+
+        X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
+        Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
 
         constellation = pskmod(0:3, 4, pi/4);
         stepsize = 1e-3; %best result
@@ -197,10 +213,26 @@ for index = 1:length(OSNR_dB)
         algorithm = 'CMA';
 
         EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap);
-        [X_matched,errX] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec_norm),2))); 
-        [Y_matched,errY] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec_norm),2))); 
+        [X_matched_CMA,errX_CMA] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec_norm),2))); 
+        [Y_matched_CMA,errY_CMA] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec_norm),2))); 
+
+        algorithm = 'LMS';
+        EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
+        [X_matched_LMS,errX_LMS] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
+        [Y_matched_LMS,errY_LMS] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
 
     else
+
+        if(rem(length(X_CD_rec),2)==0)
+            X_CD_rec = X_CD_rec(65536*8+4:end);
+            Y_CD_rec = Y_CD_rec(65536*8+4:end);
+        else
+            X_CD_rec = X_CD_rec(65536*8+3:end);
+            Y_CD_rec = Y_CD_rec(65536*8+3:end);
+        end
+
+        X_CD_rec = downsample(X_CD_rec, 4);
+        Y_CD_rec = downsample(Y_CD_rec, 4);
 
         X_Power = mean(abs((X_CD_rec)).^2);
         X_CD_rec_norm = X_CD_rec/sqrt(X_Power/10);
@@ -208,23 +240,23 @@ for index = 1:length(OSNR_dB)
         Y_Power = mean(abs((Y_CD_rec)).^2);
         Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/10);
     
-        transient_Xpol = abs(finddelay(X_CD_rec_norm(5:8:8*65536), SIG.Xpol.txSymb));
-        transient_Ypol = abs(finddelay(Y_CD_rec_norm(5:8:8*65536), SIG.Ypol.txSymb));
+        transient_Xpol = abs(finddelay(X_CD_rec_norm(1:2:65536), SIG.Xpol.txSymb));
+        transient_Ypol = abs(finddelay(Y_CD_rec_norm(1:2:65536), SIG.Ypol.txSymb));
 
-        X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*8+1:end);
-        Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*8+1:end);
+        X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
+        Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
 
         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
         M = 16; % Size of the QAM constellation
         constellation = qammod(0:15, M, MyConst);
-        stepsize = 6e-4;
-        numtaps = 8; 
-        referencetap = 2;%(numtaps-1)/2;
+        stepsize = 7.5025e-4;
+        numtaps = 10; 
+        referencetap = floor((numtaps-1)/2);
         algorithm = 'LMS';
         
-        EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 8, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
-        [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Ypol.txSymb(1:1000));
-        [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Xpol.txSymb(1:1000));
+        EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
+        [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
+        [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
 
     end
     
@@ -237,74 +269,24 @@ for index = 1:length(OSNR_dB)
     
     if r==1
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 150);
-        [X_eq, phEstX] = carrSynch(X_matched);
-        [Y_eq, phEstY] = carrSynch(Y_matched);
+        [X_eq, phEstX] = carrSynch(X_matched_CMA);
+        [Y_eq, phEstY] = carrSynch(Y_matched_CMA);
+
+        [X_Ber_Tot_CMA(index), Y_Ber_Tot_CMA(index)] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
+
+
+        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_matched_LMS, Y_matched_LMS, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
+
     else
         X_eq = X_matched;
         Y_eq = Y_matched;
+
+        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
+
     end
-
-
-    X_Power = mean(abs((X_eq)).^2);
-    X_eq = X_eq/sqrt(X_Power/10);
-
-    Y_Power = mean(abs((Y_eq)).^2);
-    Y_eq = Y_eq/sqrt(Y_Power/10);
-
-    if (index==length(OSNR_dB))
-        scatterplot(X_eq);
-        title(sprintf('%s constellation of Xpol after phase recovery',MODULATIONS(r)));
-    end    
-    
-    X_BER = zeros(1,4);
-    Y_BER = zeros(1,4);
-    j=1;
-    
-    for i=0:pi/2:3/2*pi
-    
-    fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
-    
-    % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
-    
-    transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
-    transient_Ypol = abs(finddelay(Y_eq(1:65536), SIG.Ypol.txSymb));
-    
-    fprintf('Transient Xpol: %d\n', transient_Xpol)
-    fprintf('Transient Ypol: %d\n', transient_Ypol)
-    
-    X_RX = X_eq*exp(1i*i);
-    X_RX = X_RX(transient_Xpol+1:end);
-    Y_RX = Y_eq*exp(1i*i);
-    Y_RX = Y_RX(transient_Ypol+1:end);
-
-    if (index==length(OSNR_dB) && j==1)
-        scatterplot(X_RX);
-        title(sprintf('%s constellation of Xpol after delay recovery',MODULATIONS(r)));
-    end
-    
-    if r==1
-        fprintf('The tracked moduluation is: QPSK\n');
-          [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
-    %       X_demappedBits = pskdemod(X_RX,M, pi/4*7); %it doesn't demodulate in the same way as our function
-    %       X_demappedBits = From_MATLAB_pskdemod(X_demappedBits);
-    else
-        fprintf('The tracked moduluation is: 16-QAM\n');
-       %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
-     [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
-    end
-    
-      X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
-      Y_BER(j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
-    
-       j=j+1;
-    
-    end
-    
-    X_Ber_Tot_CMA(index) = min(X_BER);
-    Y_Ber_Tot_CMA(index) = min(Y_BER);
-    fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot_CMA(index));
-    fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot_CMA(index));
 end
+
+
 
 
 %%
@@ -312,30 +294,57 @@ end
 
 if r==1
     BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
+
+    figure();
+    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
+    xlim([min(OSNR_dB),15]);
+    grid on;
+    hold on;
+    semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
+    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'm');
+    semilogy(OSNR_dB, BER_TH, 'r');
+    title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
+    legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Theoretical BER', 'Interpreter', 'latex');
+    xlabel('SNR', 'Interpreter','latex');
+    hold off;
+    
+    figure();
+    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
+    xlim([min(OSNR_dB),15]);
+    grid on;
+    hold on;
+    semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
+    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'm');
+    semilogy(OSNR_dB,BER_TH, 'r');
+    title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
+    legend('Simulated BER - Matched filter', 'Simulated BER - CMA', 'Simulated BER - LMS', 'Theoretical BER', 'Interpreter', 'latex');
+    xlabel('SNR', 'Interpreter','latex');
+    hold off;
 else
     BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
+
+    figure();
+    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
+    xlim([min(OSNR_dB),15]);
+    grid on;
+    hold on;
+    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'b');
+    semilogy(OSNR_dB, BER_TH, 'r');
+    title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
+    legend('Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
+    xlabel('SNR', 'Interpreter','latex');
+    hold off;
+    
+    figure();
+    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
+    xlim([min(OSNR_dB),15]);
+    grid on;
+    hold on;
+    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'b');
+    semilogy(OSNR_dB,BER_TH, 'r');
+    title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
+    legend('Simulated BER - Matched filter', sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
+    xlabel('SNR', 'Interpreter','latex');
+    hold off;
 end
 
-figure();
-semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-xlim([min(OSNR_dB),15]);
-grid on;
-hold on;
-%semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
-semilogy(OSNR_dB, BER_TH, 'r');
-title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-legend('Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
-xlabel('SNR', 'Interpreter','latex');
-hold off;
-
-figure();
-semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-xlim([min(OSNR_dB),15]);
-grid on;
-hold on;
-semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
-semilogy(OSNR_dB,BER_TH, 'r');
-title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
-legend('Simulated BER - Matched filter', sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
-xlabel('SNR', 'Interpreter','latex');
-hold off;
