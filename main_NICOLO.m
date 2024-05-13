@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -46,7 +46,21 @@ for index = 1:length(OSNR_dB)
     % ----------------Compensation for CD-------------------
     
     [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
-    
+
+    X_CDrec_powers_per_sample = zeros(1, SIG.Sps);
+    Y_CDrec_powers_per_sample = zeros(1, SIG.Sps);
+
+    for rep = (1:SIG.Sps)
+        X_CDrec_powers_per_sample(rep) = mean(abs((X_CD_rec(rep:8:end))).^2);
+        Y_CDrec_powers_per_sample(rep) = mean(abs((Y_CD_rec(rep:8:end))).^2);
+    end
+
+    [X_Max_Power, X_index_Max_Power] = min(X_CDrec_powers_per_sample);
+    [Y_Max_Power, Y_index_Max_Power] = min(Y_CDrec_powers_per_sample);
+
+    X_CD_rec = X_CD_rec(X_index_Max_Power:end);
+    Y_CD_rec = Y_CD_rec(Y_index_Max_Power:end);
+ 
     %fprintf('isequal = %d\n', isequal(round(X_CD,8), round(SIG.Xpol.txSig, 8)));
     
 %     X_CD_rec = SIG.Xpol.txSig;
@@ -54,7 +68,7 @@ for index = 1:length(OSNR_dB)
     %------------------ Matched Flitering ---------------------
     X_CD_rec = downsample(X_CD_rec, 4);
     Y_CD_rec = downsample(Y_CD_rec, 4);
-    
+   
     [X_matched,Y_matched] = Matched_filtering(X_CD_rec, Y_CD_rec, PulseShaping.b_coeff);
 
       
@@ -307,7 +321,7 @@ semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
 xlim([min(OSNR_dB),15]);
 grid on;
 hold on;
-semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
+%semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
 semilogy(OSNR_dB, BER_TH, 'r');
 title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
 legend('Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
