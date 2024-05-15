@@ -2,13 +2,11 @@ clear;
 close all;
 clc;
 
-% prova
-
 % Load the .mat file
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 2;
+r = 1;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -186,11 +184,11 @@ for index = 1:length(OSNR_dB)
     if r == 1
 
         if(rem(length(X_CD_rec),2)==0)
-            X_CD_rec = X_CD_rec(65536*8+4:end);
-            Y_CD_rec = Y_CD_rec(65536*8+4:end);
+            X_CD_rec = X_CD_rec(65536*8+4+1:end);
+            Y_CD_rec = Y_CD_rec(65536*8+4+1:end);
         else
-            X_CD_rec = X_CD_rec(65536*8+3:end);
-            Y_CD_rec = Y_CD_rec(65536*8+3:end);
+            X_CD_rec = X_CD_rec(65536*8+5+1:end);
+            Y_CD_rec = Y_CD_rec(65536*8+5+1:end);
         end
 
         X_CD_rec = downsample(X_CD_rec, 4);
@@ -205,11 +203,11 @@ for index = 1:length(OSNR_dB)
         transient_Xpol = abs(finddelay(X_CD_rec_norm(1:2:65536), SIG.Xpol.txSymb));
         transient_Ypol = abs(finddelay(Y_CD_rec_norm(1:2:65536), SIG.Ypol.txSymb));
 
-        X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
-        Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
+%         X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
+%         Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
 
         constellation = pskmod(0:3, 4, pi/4);
-        stepsize = 1e-3; %best result
+        stepsize = 5e-3; %best result
         numtaps = 9;
         referencetap = (numtaps-1)/2;
         algorithm = 'CMA';
@@ -218,10 +216,32 @@ for index = 1:length(OSNR_dB)
         [X_matched_CMA,errX_CMA] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec_norm),2))); 
         [Y_matched_CMA,errY_CMA] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec_norm),2))); 
 
+        if (index==length(OSNR_dB))
+            scatterplot(X_matched_CMA);
+            title(sprintf('%s constellation of Xpol after %s %d dB of WGN',MODULATIONS(r), algorithm, OSNR_dB(index)));
+        end
+
         algorithm = 'LMS';
         EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
         [X_matched_LMS,errX_LMS] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
         [Y_matched_LMS,errY_LMS] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
+
+        if (index==length(OSNR_dB))
+            scatterplot(X_matched_LMS);
+            title(sprintf('%s constellation of Xpol after %s %d dB of WGN',MODULATIONS(r), algorithm, OSNR_dB(index)));
+        end
+
+    %------------------Delay&Phase recovery ---------------------
+    
+        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 150);
+        [X_eq, phEstX] = carrSynch(X_matched_CMA);
+        [Y_eq, phEstY] = carrSynch(Y_matched_CMA);
+
+        [X_Ber_Tot_CMA(index), Y_Ber_Tot_CMA(index)] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
+
+
+        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_matched_LMS, Y_matched_LMS, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
+
 
     else
 
@@ -260,33 +280,18 @@ for index = 1:length(OSNR_dB)
         [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
         [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
 
-    end
-    
-    if (index==length(OSNR_dB))
-        scatterplot(X_matched);
-        title(sprintf('%s constellation of Xpol after %s %d dB of WGN',MODULATIONS(r), algorithm, OSNR_dB(index)));
-    end
+        if (index==length(OSNR_dB))
+            scatterplot(X_matched);
+            title(sprintf('%s constellation of Xpol after %s %d dB of WGN',MODULATIONS(r), algorithm, OSNR_dB(index)));
+        end
 
-    %------------------Delay&Phase recovery ---------------------
-    
-    if r==1
-        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 150);
-        [X_eq, phEstX] = carrSynch(X_matched_CMA);
-        [Y_eq, phEstY] = carrSynch(Y_matched_CMA);
-
-        [X_Ber_Tot_CMA(index), Y_Ber_Tot_CMA(index)] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
-
-
-        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_matched_LMS, Y_matched_LMS, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
-
-    else
         X_eq = X_matched;
         Y_eq = Y_matched;
 
         [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
 
     end
-end
+end    
 
 
 
