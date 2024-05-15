@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 2;
+r = 1;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -144,53 +144,67 @@ end
 
 fprintf('\n');
 
+
 %% 
 %------------------------- CMA/LMS ----------------------------
+
+% upsampledSig_Xpol_txSymb = upsample(SIG.Xpol.txSymb, 2);
+% upsampledSig_Xpol_txSymb(2:2:end) = upsampledSig_Xpol_txSymb(1:2:end-1);
+% 
+% upsampledSig_Ypol_txSymb = upsample(SIG.Ypol.txSymb, 2);
+% upsampledSig_Ypol_txSymb(2:2:end) = upsampledSig_Ypol_txSymb(1:2:end-1);
+% 
+% TX_SYMB_Xpol = repmat(upsampledSig_Xpol_txSymb,5,1); %repeat the bits 10 times to simulate the original transmission
+% TX_SYMB_Ypol = repmat(upsampledSig_Ypol_txSymb,5,1); %repeat the bits 10 times to simulate the original transmission
 
 X_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
 Y_Ber_Tot_CMA = zeros(1,length(OSNR_dB));
 % X_Ber_Tot_LMS = zeros(1,length(OSNR_dB));
 % Y_Ber_Tot_LMS = zeros(1,length(OSNR_dB));
 
-%setting for QPSK
-% stepsize= 1e-3
-% num_taps=[8 9 10] --> best range
-
-%stting for 16 QAM
-stepsize = 0.000750250000000000;
-num_taps = [10 11 12 13 14 15];% --> best range
+stepsize = 1e-3
+num_taps = 9
 
 for z = 1:length(stepsize)
     for w = 1:length(num_taps)
         for index = 1:length(OSNR_dB)
             
+            %100 correct
             [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
             [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
             
             % ----------------Compensation for CD-------------------
             
+            %100 correct
             [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
             
             %---------------------------EQ------------------------------------------
             
+            
+            X_CD_rec = X_CD_rec(65536*8:end); % cutting out the delay by removing first repetition
+            Y_CD_rec = Y_CD_rec(65536*8:end);
+           
             X_CD_rec = downsample(X_CD_rec, 4);
-            Y_CD_rec = downsample(Y_CD_rec, 4);
+            Y_CD_rec = downsample(Y_CD_rec, 4);           
+
+           if(rem(length(X_CD_rec),2) ~= 0)
+                X_CD_rec = X_CD_rec(2:end);
+                Y_CD_rec = Y_CD_rec(2:end);
+           end
             
             X_Power = mean(abs((X_CD_rec)).^2);
             X_CD_rec_norm = X_CD_rec/sqrt(X_Power/10);
             Y_Power = mean(abs((Y_CD_rec)).^2);
             Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/10);
             
-            transient_Xpol = abs(finddelay(X_CD_rec_norm(1:2:65536), SIG.Xpol.txSymb));
-            transient_Ypol = abs(finddelay(Y_CD_rec_norm(1:2:65536), SIG.Ypol.txSymb));
+%             transient_Xpol = abs(finddelay(X_CD_rec_norm(1:2:65536), SIG.Xpol.txSymb));
+%             transient_Ypol = abs(finddelay(Y_CD_rec_norm(1:2:65536), SIG.Ypol.txSymb));
+%             
+%             X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
+%             Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
+%             
             
-            X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
-            Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
-            
-%             constellation = pskmod(0:3, 4, pi/4);
-            MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
-            M = 16; % Size of the QAM constellation
-            constellation = qammod(0:15, M, MyConst);
+            constellation = pskmod(0:3, 4, pi/4);
             stepsize1 = stepsize(z);
             numtaps1 = num_taps(:,w);
             referencetap = floor((numtaps1-1)/2);
@@ -199,6 +213,18 @@ for z = 1:length(stepsize)
             EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize1,'NumTaps', numtaps1, 'InputSamplesPerSymbol', 2, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
             [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
             [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
+            
+            figure()
+            plot(1:length(X_matched),abs(errX))
+            
+            X_matched=X_matched(66000:end);
+            Y_matched=Y_matched(66000:end);
+           
+            transient_Xpol = abs(finddelay(X_matched(1:65536), SIG.Xpol.txSymb));
+            transient_Ypol = abs(finddelay(Y_matched(1:65536), SIG.Ypol.txSymb));
+            
+            X_matched = X_matched(transient_Xpol+1:end);
+            Y_matched = Y_matched(transient_Ypol+1:end);
             
             X_eq = X_matched;
             Y_eq = Y_matched;
@@ -214,21 +240,21 @@ for z = 1:length(stepsize)
             
             for i=0:pi/2:3/2*pi
                 
-                %fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+                fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
                 
                 % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
                 
                 transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
                 transient_Ypol = abs(finddelay(Y_eq(1:65536), SIG.Ypol.txSymb));
                 
-                 
+                
                 X_RX = X_eq*exp(1i*i);
                 X_RX = X_RX(transient_Xpol+1:end);
                 Y_RX = Y_eq*exp(1i*i);
                 Y_RX = Y_RX(transient_Ypol+1:end);
                 
-%                 [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
-                [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX, Y_RX);
+                [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
+                
                 
                 X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
                 Y_BER(j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
@@ -238,6 +264,7 @@ for z = 1:length(stepsize)
                 
              X_Ber_Tot_CMA(index) = min(X_BER);
              Y_Ber_Tot_CMA(index) = min(Y_BER);   
+             %fprintf('The BER on Xpol is: %.6f\n', X_Ber_CMA(index));
             
          end
             
