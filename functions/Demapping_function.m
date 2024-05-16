@@ -21,8 +21,9 @@ function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB
     
     % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
     
-    transient_Xpol = abs(finddelay(X_eq(1:65536), SIG_Xpol_Symb));
-    transient_Ypol = abs(finddelay(Y_eq(1:65536), SIG_Ypol_Symb));
+    
+    transient_Xpol = abs(finddelay(X_eq(1:65536*2), SIG_Xpol_Symb));
+    transient_Ypol = abs(finddelay(Y_eq(1:65536*2), SIG_Ypol_Symb));
     
     fprintf('Transient Xpol: %d\n', transient_Xpol)
     fprintf('Transient Ypol: %d\n', transient_Ypol)

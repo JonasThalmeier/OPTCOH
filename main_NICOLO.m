@@ -8,11 +8,13 @@ modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
 r = 1;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
-load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
+load(strcat('C:\Users\utente\Documents\GitHub\OPTCOH\TXsequences\TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
     M = 4;
+    power_norm = 2;
 else
     M = 16;
+    power_norm = 10;
 end
 
 TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
@@ -29,7 +31,7 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 if r==1
     OSNR_dB = 4:8;
 else
-    OSNR_dB = 11:14;
+    OSNR_dB = 12:15;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
@@ -85,6 +87,7 @@ for index = 1:length(OSNR_dB)
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     else
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 150, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+        [X_test, phEstX_test] = carrSynch(X_matched(1:2:end));
         [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
         [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
     end
@@ -180,51 +183,62 @@ for index = 1:length(OSNR_dB)
     %---------------------------EQ---------------------------------------------
     %From 15 numtaps are the best for qpsk, also for qam, but 60 and 120 seem
     %better. The reference tap for qpsk are 1,3,65,121.
+
+    X_CD_rec = X_CD_rec(65536*8+1:end);
+    Y_CD_rec = Y_CD_rec(65536*8+1:end);
+   
+    X_CD_rec = downsample(X_CD_rec, 4);
+    Y_CD_rec = downsample(Y_CD_rec, 4);
+
+    if(rem(length(X_CD_rec),2) ~= 0)
+
+        X_CD_rec = X_CD_rec(2:end);
+        Y_CD_rec = Y_CD_rec(2:end);
+
+    end
+
+    X_Power = mean(abs((X_CD_rec)).^2);
+    X_CD_rec_norm = X_CD_rec/sqrt(X_Power/power_norm);
+
+    Y_Power = mean(abs((Y_CD_rec)).^2);
+    Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/power_norm);
+
+    if(rem(length(X_CD_rec),2) ~= 0)
+
+        X_CD_rec_norm = X_CD_rec_norm(2:end);
+        Y_CD_rec_norm = Y_CD_rec_norm(2:end);
+
+    end
   
     if r == 1
-
-        if(rem(length(X_CD_rec),2)==0)
-            X_CD_rec = X_CD_rec(65536*8+4+1:end);
-            Y_CD_rec = Y_CD_rec(65536*8+4+1:end);
-        else
-            X_CD_rec = X_CD_rec(65536*8+5+1:end);
-            Y_CD_rec = Y_CD_rec(65536*8+5+1:end);
-        end
-
-        X_CD_rec = downsample(X_CD_rec, 4);
-        Y_CD_rec = downsample(Y_CD_rec, 4);
-
-        X_Power = mean(abs((X_CD_rec)).^2);
-        X_CD_rec_norm = X_CD_rec/sqrt(X_Power/10);
-
-        Y_Power = mean(abs((Y_CD_rec)).^2);
-        Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/10);
-    
-        transient_Xpol = abs(finddelay(X_CD_rec_norm(1:2:65536), SIG.Xpol.txSymb));
-        transient_Ypol = abs(finddelay(Y_CD_rec_norm(1:2:65536), SIG.Ypol.txSymb));
-
-%         X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
-%         Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
-
+  
         constellation = pskmod(0:3, 4, pi/4);
-        stepsize = 5e-3; %best result
+        stepsize = 6e-4; %best result
         numtaps = 9;
         referencetap = (numtaps-1)/2;
         algorithm = 'CMA';
 
         EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'Constellation', constellation, 'ReferenceTap', referencetap);
         [X_matched_CMA,errX_CMA] = EQ(X_CD_rec(1:end-mod(length(X_CD_rec_norm),2))); 
-        [Y_matched_CMA,errY_CMA] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec_norm),2))); 
+        [Y_matched_CMA,errY_CMA] = EQ(Y_CD_rec(1:end-mod(length(Y_CD_rec_norm),2)));  
 
         if (index==length(OSNR_dB))
             scatterplot(X_matched_CMA);
             title(sprintf('%s constellation of Xpol after %s %d dB of WGN',MODULATIONS(r), algorithm, OSNR_dB(index)));
         end
 
+        constellation = pskmod(0:3, 4, pi/4);
+        stepsize = 2e-4; %best result
+        numtaps = 8;
+        referencetap = floor((numtaps-1)/2);
         algorithm = 'LMS';
+
         EQ = comm.LinearEqualizer('Algorithm', algorithm, 'StepSize', stepsize,'NumTaps', numtaps, 'InputSamplesPerSymbol', 2, 'ReferenceTap', referencetap, 'Constellation', constellation); % 'Constellation', constellation,
         [X_matched_LMS,errX_LMS] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
         [Y_matched_LMS,errY_LMS] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
+
+        X_matched_LMS=X_matched_LMS(75000:end);
+        Y_matched_LMS=Y_matched_LMS(75000:end);
 
         if (index==length(OSNR_dB))
             scatterplot(X_matched_LMS);
@@ -237,42 +251,25 @@ for index = 1:length(OSNR_dB)
         [X_eq, phEstX] = carrSynch(X_matched_CMA);
         [Y_eq, phEstY] = carrSynch(Y_matched_CMA);
 
+        X_Power = mean(abs((X_matched_LMS)).^2);
+        X_matched_LMS_norm = X_matched_LMS/sqrt(X_Power/2);
+
+        Y_Power = mean(abs((Y_matched_LMS)).^2);
+        Y_matched_LMS_norm = Y_matched_LMS/sqrt(Y_Power/2);
+
         [X_Ber_Tot_CMA(index), Y_Ber_Tot_CMA(index)] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
 
 
-        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_matched_LMS, Y_matched_LMS, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
+        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_matched_LMS_norm, Y_matched_LMS_norm, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
 
 
     else
 
-        if(rem(length(X_CD_rec),2)==0)
-            X_CD_rec = X_CD_rec(65536*8+4:end);
-            Y_CD_rec = Y_CD_rec(65536*8+4:end);
-        else
-            X_CD_rec = X_CD_rec(65536*8+3:end);
-            Y_CD_rec = Y_CD_rec(65536*8+3:end);
-        end
-
-        X_CD_rec = downsample(X_CD_rec, 4);
-        Y_CD_rec = downsample(Y_CD_rec, 4);
-
-        X_Power = mean(abs((X_CD_rec)).^2);
-        X_CD_rec_norm = X_CD_rec/sqrt(X_Power/10);
-
-        Y_Power = mean(abs((Y_CD_rec)).^2);
-        Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/10);
-    
-        transient_Xpol = abs(finddelay(X_CD_rec_norm(1:2:65536), SIG.Xpol.txSymb));
-        transient_Ypol = abs(finddelay(Y_CD_rec_norm(1:2:65536), SIG.Ypol.txSymb));
-
-        X_CD_rec_norm = X_CD_rec_norm(transient_Xpol*2+1:end);
-        Y_CD_rec_norm = Y_CD_rec_norm(transient_Ypol*2+1:end);
-
         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
         M = 16; % Size of the QAM constellation
         constellation = qammod(0:15, M, MyConst);
-        stepsize = 7.5025e-4;
-        numtaps = 10; 
+        stepsize = 2.15e-5;%7.5025e-4;
+        numtaps = 11; 
         referencetap = floor((numtaps-1)/2);
         algorithm = 'LMS';
         
@@ -280,23 +277,23 @@ for index = 1:length(OSNR_dB)
         [X_matched,errX] = EQ(X_CD_rec_norm, SIG.Xpol.txSymb);
         [Y_matched,errY] = EQ(Y_CD_rec_norm, SIG.Ypol.txSymb);
 
+        X_matched=X_matched(0.85e5:end);
+        Y_matched=Y_matched(1e5:end);
+
         if (index==length(OSNR_dB))
             scatterplot(X_matched);
             title(sprintf('%s constellation of Xpol after %s %d dB of WGN',MODULATIONS(r), algorithm, OSNR_dB(index)));
         end
 
-        X_eq = X_matched;
-        Y_eq = Y_matched;
-
-        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
+        
+        [X_Ber_Tot_LMS(index), Y_Ber_Tot_LMS(index)] = Demapping_function(X_matched, Y_matched, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG.Xpol.txSymb, SIG.Ypol.txSymb, MODULATIONS(r));
 
     end
 end    
 
 
-
-
 %%
+
 %------------------FIGURES-------------
 
 if r==1
@@ -304,7 +301,7 @@ if r==1
 
     figure();
     semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),15]);
+    xlim([min(OSNR_dB),12]);
     grid on;
     hold on;
     semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
@@ -317,7 +314,7 @@ if r==1
     
     figure();
     semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),15]);
+    xlim([min(OSNR_dB),12]);
     grid on;
     hold on;
     semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
@@ -332,7 +329,7 @@ else
 
     figure();
     semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),15]);
+    xlim([min(OSNR_dB),20]);
     grid on;
     hold on;
     semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'b');
@@ -344,7 +341,7 @@ else
     
     figure();
     semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),15]);
+    xlim([min(OSNR_dB),20]);
     grid on;
     hold on;
     semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'b');
