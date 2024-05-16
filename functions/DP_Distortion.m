@@ -13,17 +13,17 @@ delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .
 delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phase_init);
 
 %-------------Wiener Process/Random Walk-----------------------------------
-var = 1;
-samp_rate = 8*64e9; % deltaW of a Wiener process have a variance equal to the stime between steps
-n = 1000;
-lenX = length(TX_Xpol)+delay;
-lenY = length(TX_Ypol)+delay;
-
-% Generating the random steps
-stepsX = sqrt(var/samp_rate)*randn(1,lenX);
-phaseX = cumsum(stepsX)+phase_init;
-stepsY = sqrt(var/samp_rate)*randn(1,lenY);
-phaseY = cumsum(stepsY)+phase_init;
+% var = 1;
+% samp_rate = 8*64e9; % deltaW of a Wiener process have a variance equal to the stime between steps
+% n = 1000;
+% lenX = length(TX_Xpol)+delay;
+% lenY = length(TX_Ypol)+delay;
+% 
+% % Generating the random steps
+% stepsX = sqrt(var/samp_rate)*randn(1,lenX);
+% phaseX = cumsum(stepsX)+phase_init;
+% stepsY = sqrt(var/samp_rate)*randn(1,lenY);
+% phaseY = cumsum(stepsY)+phase_init;
 
 % Rotate constellation
 % delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phaseX)'; %add zeros at beginning to simulate delay
@@ -42,4 +42,4 @@ phaseY = cumsum(stepsY)+phase_init;
 % for n = 1:lenX
 %     JR(:,:,n) = R * J(:,:,n);
 % end
-% end
+end

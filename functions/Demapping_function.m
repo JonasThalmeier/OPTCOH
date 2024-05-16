@@ -1,16 +1,11 @@
-function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG_Xpol_Symb, SIG_Ypol_Symb, MODULATIONS)
+function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB, r, index, TX_BITS_Xpol, TX_BITS_Ypol, M, SIG_Xpol_Symb, SIG_Ypol_Symb, MODULATIONS, algorithm)
 
     X_Power = mean(abs((X_eq)).^2);
     X_eq = X_eq/sqrt(X_Power/10);
 
     Y_Power = mean(abs((Y_eq)).^2);
     Y_eq = Y_eq/sqrt(Y_Power/10);
-
-    if (index==length(OSNR_dB))
-        scatterplot(X_eq);
-        title(sprintf('%s constellation of Xpol after phase recovery',MODULATIONS));
-    end    
-    
+      
     X_BER = zeros(1,4);
     Y_BER = zeros(1,4);
     j=1;
@@ -35,7 +30,7 @@ function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB
 
     if (index==length(OSNR_dB) && j==1)
         scatterplot(X_RX);
-        title(sprintf('%s constellation of Xpol after delay recovery',MODULATIONS));
+        title(sprintf('%s Xpol after delay recovery %s, OSNR=%d dB',MODULATIONS, algorithm, OSNR_dB(index)));
     end
     
     if r==1
