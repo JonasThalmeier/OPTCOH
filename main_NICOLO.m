@@ -16,7 +16,7 @@ else
     M = 16;
     power_norm = 10;
 end
-
+%%
 TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
 TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
 
@@ -30,9 +30,9 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 
 % Adding the noise
 if r==1
-    OSNR_dB = 4:9;
+    OSNR_dB = 2:11;
 else
-    OSNR_dB = 10:15;
+    OSNR_dB = 9:19;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
@@ -119,15 +119,17 @@ for index = 1:length(OSNR_dB)
     
     for i=0:pi/2:3/2*pi
     
-    fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+%     fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
     
     % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
     
     transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
     transient_Ypol = abs(finddelay(Y_eq(1:65536), SIG.Ypol.txSymb));
     
-    fprintf('Transient Xpol: %d\n', transient_Xpol)
-    fprintf('Transient Ypol: %d\n', transient_Ypol)
+    if(index==length(OSNR_dB))
+        fprintf('Transient Xpol: %d\n', transient_Xpol)
+        fprintf('Transient Ypol: %d\n', transient_Ypol)
+    end
     
     X_RX = X_eq*exp(1i*i);
     X_RX = X_RX(transient_Xpol+1:end);
@@ -140,11 +142,11 @@ for index = 1:length(OSNR_dB)
     end
     
     if r==1
-        fprintf('The tracked moduluation is: QPSK\n');
+        %fprintf('The tracked moduluation is: QPSK\n');
           [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
   
     else
-        fprintf('The tracked moduluation is: 16-QAM\n');
+        %fprintf('The tracked moduluation is: 16-QAM\n');
 %         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
 %         X_demappedBits = qamdemod(X_RX, M, MyConst, OutputType='bit', PlotConstellation=true);
 %         N = length(X_demappedBits)/4;
@@ -322,41 +324,41 @@ if r==1
     BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
 
     figure();
-    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),12]);
+    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+    xlim([min(OSNR_dB),max(OSNR_dB)]);
     grid on;
     hold on;
-    semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
-    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'm');
-    semilogy(OSNR_dB, BER_TH, 'r');
+    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1, 'LineStyle','-.');
+    semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
+    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');    
     title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-    legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Theoretical BER', 'Interpreter', 'latex');
+    legend('Theoretical BER', 'Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
     
     figure();
-    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),12]);
+    semilogy(OSNR_dB,BER_TH, 'r','LineWidth', 1); 
+    xlim([min(OSNR_dB),max(OSNR_dB)]);
     grid on;
     hold on;
-    semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b');
-    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'm');
-    semilogy(OSNR_dB,BER_TH, 'r');
+    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1, 'LineStyle','-.');
+    semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
+    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');
     title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
-    legend('Simulated BER - Matched filter', 'Simulated BER - CMA', 'Simulated BER - LMS', 'Theoretical BER', 'Interpreter', 'latex');
+    legend('Theoretical BER', 'Simulated BER - Matched filter', 'Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
 
     figure();
-    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),12]);
+    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+    xlim([min(OSNR_dB),max(OSNR_dB)]);
     grid on;
     hold on;
-    semilogy(OSNR_dB, BER_MED_CMA, 'Marker','o', 'Color', 'b');
-    semilogy(OSNR_dB, BER_MED_LMS, 'Marker','o', 'Color', 'm');
-    semilogy(OSNR_dB, BER_TH, 'r');
+    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+    semilogy(OSNR_dB, BER_MED_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
+    semilogy(OSNR_dB, BER_MED_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');
     title(sprintf('%s BER curve',MODULATIONS(r)));
-    legend('Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Theoretical BER', 'Interpreter', 'latex');
+    legend('Theoretical BER', 'Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
 
@@ -368,38 +370,39 @@ else
     BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
 
     figure();
-    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),18]);
+    semilogy(OSNR_dB, BER_TH, 'r');
+    xlim([min(OSNR_dB),max(OSNR_dB)]);
     grid on;
     hold on;
-    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'b');
-    semilogy(OSNR_dB, BER_TH, 'r');
+    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
     title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-    legend('Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
+    legend('Theoretical BER', 'Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
     
     figure();
-    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),18]);
+    semilogy(OSNR_dB,BER_TH, 'r');
+    xlim([min(OSNR_dB),max(OSNR_dB)]);
     grid on;
     hold on;
-    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'b');
+    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
     semilogy(OSNR_dB,BER_TH, 'r');
     title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
-    legend('Simulated BER - Matched filter', sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
+    legend('Theoretical BER', 'Simulated BER - Matched filter', sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
 
     figure();
-    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1);
-    xlim([min(OSNR_dB),18]);
+    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+    xlim([min(OSNR_dB),max(OSNR_dB)]);
     grid on;
     hold on;
-    semilogy(OSNR_dB, BER_MED_LMS, 'Marker','o', 'Color', 'b');
-    semilogy(OSNR_dB, BER_TH, 'r');
+    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+    semilogy(OSNR_dB, BER_MED_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
     title(sprintf('%s BER curve',MODULATIONS(r)));
-    legend('Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Theoretical BER', 'Interpreter', 'latex');
+    legend('Theoretical BER', 'Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
     
