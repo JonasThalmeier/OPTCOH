@@ -12,7 +12,7 @@ function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB
     
     for i=0:pi/2:3/2*pi
     
-    fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+    %fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
     
     % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
     
@@ -20,8 +20,10 @@ function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB
     transient_Xpol = abs(finddelay(X_eq(1:65536*2), SIG_Xpol_Symb));
     transient_Ypol = abs(finddelay(Y_eq(1:65536*2), SIG_Ypol_Symb));
     
-    fprintf('Transient Xpol: %d\n', transient_Xpol)
-    fprintf('Transient Ypol: %d\n', transient_Ypol)
+    if(index==length(OSNR_dB))
+        fprintf('Transient Xpol: %d\n', transient_Xpol)
+        fprintf('Transient Ypol: %d\n', transient_Ypol)
+    end
     
     X_RX = X_eq*exp(1i*i);
     X_RX = X_RX(transient_Xpol+1:end);
@@ -34,12 +36,12 @@ function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB
     end
     
     if r==1
-        fprintf('The tracked moduluation is: QPSK\n');
+        %fprintf('The tracked moduluation is: QPSK\n');
           [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
     %       X_demappedBits = pskdemod(X_RX,M, pi/4*7); %it doesn't demodulate in the same way as our function
     %       X_demappedBits = From_MATLAB_pskdemod(X_demappedBits);
     else
-        fprintf('The tracked moduluation is: 16-QAM\n');
+        %fprintf('The tracked moduluation is: 16-QAM\n');
        %     X_demappedBits = qamdemod(X_2Sps(1:2:end),M);
      [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
     end
@@ -53,5 +55,5 @@ function [X_Ber_Tot_CMA, Y_Ber_Tot_CMA] = Demapping_function(X_eq, Y_eq, OSNR_dB
     
     X_Ber_Tot_CMA = min(X_BER);
     Y_Ber_Tot_CMA = min(Y_BER);
-    fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot_CMA);
-    fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot_CMA);
+    fprintf('The BER at %d dB on Xpol is: %.6f\n', OSNR_dB(index), X_Ber_Tot_CMA);
+    fprintf('The BER at %d dB on Ypol is: %.6f\n', OSNR_dB(index), Y_Ber_Tot_CMA);
