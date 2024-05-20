@@ -13,7 +13,7 @@
 %     XPol_out(idx+1) = fir*Xpol_in(idx+1:idx+num_taps);
 % end
 
-function [out] = EQ(Xpol_in,Ypol_in,mu,NTaps)
+function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ADAPTIVEEQUALIZER [y] = AdaptiveEqualizer(x,SpS,ParamDE) %
 % %
@@ -53,7 +53,7 @@ function [out] = EQ(Xpol_in,Ypol_in,mu,NTaps)
 % Darli A. A. Mello and Fabio A. Barbosa; %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 R_CMA = 1;
-SpS = 2;
+SpS = 1;
 NOut = 0;
 % Input blocks:
 x = [Xpol_in, Ypol_in];
@@ -61,7 +61,7 @@ x = [x(end-floor(NTaps/2)+1:end,:) ; x ; x(1:floor(NTaps/2),:)];
 xV = convmtx(x(:,1).',NTaps) ; xH = convmtx(x(:,2).',NTaps);
 xV = xV(:,NTaps:SpS:end-NTaps+1) ; xH = xH(:,NTaps:SpS:end-NTaps+1);
 % Output length:
-OutLength = floor((size(x,1)-NTaps+1)/2) ; clearvars x
+OutLength = floor((size(x,1)-NTaps+1)) ; clearvars x % removed the /2
 % Initializing the outputs
 y1 = zeros(OutLength,1) ; y2 = zeros(OutLength,1);
 % Initial filter coefficients:
@@ -69,8 +69,10 @@ w1V = zeros(NTaps,1); w1H = zeros(NTaps,1); w2V = zeros(NTaps,1);w2H = zeros(NTa
 w1V(floor(NTaps/2)+1) = 1;w1H(floor(NTaps/2)+1) = 1;w2V(floor(NTaps/2)+1) = 1;w2H(floor(NTaps/2)+1) = 1;
 for i = 1:OutLength
     % Calculating the outputs:
-    y1(i) = w1V'*xV(:,i) + w1H'*xH(:,i);
-    y2(i) = w2V'*xV(:,i) + w2H'*xH(:,i);
+    % y1(i) = w1V'*xV(:,i) + w1H'*xH(:,i);
+    % y2(i) = w2V'*xV(:,i) + w2H'*xH(:,i);
+    y1(i) = w1V'*xV(:,i);
+    y2(i) = w2H'*xH(:,i);
     % Updating the filter coefficients:
     [w1V,w1H,w2V,w2H] = CMA(xV(:,i),xH(:,i),y1(i),y2(i),w1V,w1H,w2V,w2H,R_CMA,mu);
 end
