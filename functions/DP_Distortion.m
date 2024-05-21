@@ -13,7 +13,8 @@ delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .
 delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phase_init);
 
 %-------------Wiener Process/Random Walk-----------------------------------
-% var = 1;
+% delta_nu = 50e3;  % Laser linewidth. 50kHz seems to be realisitic
+% var = 2*pi*delta_nu;
 % samp_rate = 8*64e9; % deltaW of a Wiener process have a variance equal to the stime between steps
 % n = 1000;
 % lenX = length(TX_Xpol)+delay;
