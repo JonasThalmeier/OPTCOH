@@ -13,7 +13,7 @@
 %     XPol_out(idx+1) = fir*Xpol_in(idx+1:idx+num_taps);
 % end
 
-function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps)
+function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ADAPTIVEEQUALIZER [y] = AdaptiveEqualizer(x,SpS,ParamDE) %
 % %
@@ -55,11 +55,13 @@ function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps)
 R_CMA = 1;
 SpS = 1;
 NOut = 0;
+train_len = length(Xorg);
 % Input blocks:
 x = [Xpol_in, Ypol_in];
 x = [x(end-floor(NTaps/2)+1:end,:) ; x ; x(1:floor(NTaps/2),:)];
 xV = convmtx(x(:,1).',NTaps) ; xH = convmtx(x(:,2).',NTaps);
-xV = xV(:,NTaps:SpS:end-NTaps+1) ; xH = xH(:,NTaps:SpS:end-NTaps+1);
+% xV = xV(:,NTaps:SpS:end-NTaps+1) ; xH = xH(:,NTaps:SpS:end-NTaps+1); %
+% Not needed if used wit 1SpS
 % Output length:
 OutLength = floor((size(x,1)-NTaps+1)) ; clearvars x % removed the /2
 % Initializing the outputs
@@ -74,7 +76,14 @@ for i = 1:OutLength
     y1(i) = w1V'*xV(:,i);
     y2(i) = w2H'*xH(:,i);
     % Updating the filter coefficients:
-    [w1V,w1H,w2V,w2H] = CMA(xV(:,i),xH(:,i),y1(i),y2(i),w1V,w1H,w2V,w2H,R_CMA,mu);
+    if alg=="CMA"
+        [w1V,w1H,w2V,w2H] = CMA(xV(:,i),xH(:,i),y1(i),y2(i),w1V,w1H,w2V,w2H,R_CMA,mu);
+    elseif alg=="LMS"
+        [w1V,w1H,w2V,w2H] = LMS(xV(:,i),xH(:,i),y1(i),y2(i),w1V,w1H,w2V,w2H,mu,Xorg(i),Yorg(i));
+        if i>=train_len
+            alg = "";
+        end
+    end
 end
 % Output samples:
 out = [y1 y2] ; out = out(1+NOut:end,:);
@@ -113,4 +122,12 @@ w1V = w1V + Mu*xV*(R-abs(y1).^2)*conj(y1);
 w1H = w1H + Mu*xH*(R-abs(y1).^2)*conj(y1);
 w2V = w2V + Mu*xV*(R-abs(y2).^2)*conj(y2);
 w2H = w2H + Mu*xH*(R-abs(y2).^2)*conj(y2);
+end
+
+function [w1V,w1H,w2V,w2H] = LMS(xV,xH,y1,y2,w1V,w1H,w2V,w2H,Mu,Xorg,Yorg)
+%Updating the filters:
+w1V = w1V + Mu*xV*y1*conj(Xorg-y1);
+w1H = w1H + Mu*xH*y1*conj(Yorg-y1);
+w2V = w2V + Mu*xV*y2*conj(Xorg-y2);
+w2H = w2H + Mu*xH*y2*conj(Yorg-y2);
 end
