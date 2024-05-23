@@ -1,4 +1,4 @@
-function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg)
+function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg,hinit)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EQ_func performs equalization on a dual polarization signal using
 % either the CMA or LMS algorithm.
@@ -38,19 +38,27 @@ y1 = zeros(OutLength, 1);
 y2 = zeros(OutLength, 1);
 
 % Initialize filter coefficients
-w1V = zeros(NTaps, 1);
+w1V = randi([0 1000],NTaps, 1);
+w1V = w1V./sum(w1V);
 w1H = zeros(NTaps, 1);
-w2V = zeros(NTaps, 1);
+w2V = randi([0 1000],NTaps, 1);
+w2V = w2V./sum(w2V);
 w2H = zeros(NTaps, 1);
-w1V(floor(NTaps/2) + 1) = 1;
+w1Vmat = zeros(NTaps, OutLength);
+w1Hmat = zeros(NTaps, OutLength);
+w2Vmat = zeros(NTaps, OutLength);
+w2Hmat = zeros(NTaps, OutLength);
+%w1V(floor(NTaps/2) + 1) = 1;
 w1H(floor(NTaps/2) + 1) = 1;
-w2V(floor(NTaps/2) + 1) = 1;
+%w2V(floor(NTaps/2) + 1) = 1;
 w2H(floor(NTaps/2) + 1) = 1;
 
 for i = 1:OutLength
     % Calculate the outputs
     % y1(i) = w1V'*xV(:,i) + w1H'*xH(:,i);
     % y2(i) = w2V'*xV(:,i) + w2H'*xH(:,i);
+    w1Vmat(:,i) = w1V;
+    w2Hmat(:,i) = w2H;
     y1(i) = w1V' * xV(:, i);
     y2(i) = w2H' * xH(:, i);
 
@@ -64,6 +72,9 @@ for i = 1:OutLength
         end
     end
 end
+
+temp=w1Vmat./max(w1Vmat,[],1);
+mesh(abs(w1Vmat(:,1:100:train_len)));
 
 % Output samples
 out = [y1 y2];
