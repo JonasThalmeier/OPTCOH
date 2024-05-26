@@ -1,4 +1,4 @@
-function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg,hinit)
+function [out] = EQ_func_1(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EQ_func performs equalization on a dual polarization signal using
 % either the CMA or LMS algorithm.
@@ -50,8 +50,11 @@ w1V = zeros(NTaps, 1);
 w1H = zeros(NTaps, 1);
 w2V = zeros(NTaps, 1);
 w2H = zeros(NTaps, 1);
+w1V(floor(NTaps/2) + 1) = 1;
+w2V(floor(NTaps/2) + 1) = 1;
+w2H(floor(NTaps/2) + 1) = 1;
 % w1V(floor(NTaps/2) + 1) = 1;
-% w1H(floor(NTaps/2) + 1) = 1;
+w1H(floor(NTaps/2) + 1) = 1;
 % w2V(floor(NTaps/2) + 1) = 1;
 % w2H(floor(NTaps/2) + 1) = 1;
 
