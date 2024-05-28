@@ -5,14 +5,14 @@ close all;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
 % Parameters
 SpS_down = 4;
 SpS_up = SIG.Sps/SpS_down;
-OSNR_dB = 5:3:15;
+OSNR_dB = 5:1:18;
 seq_lenght = length(SIG.Xpol.txSymb);
 
 if r == 1
@@ -64,17 +64,19 @@ for index = 1:length(OSNR_dB)
         X_eq = XY_vit(:,1);
         Y_eq = XY_vit(:,2);
     else
+        mu = 1e-3;
+        XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,9,"RDE",0,0);
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 10, 'NormalizedLoopBandwidth',1e-2);
-        [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
-        [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
+        [X_eq, phEstX] = carrSynch(XY_eq(:,1));
+        [Y_eq, phEstY] = carrSynch(XY_eq(:,2));
     end
 
     X_Power = mean(abs((X_eq)).^2);
     X_eq = X_eq/sqrt(X_Power/10);
     Y_Power = mean(abs((Y_eq)).^2);
     Y_eq = Y_eq/sqrt(Y_Power/10);
-    X_eq = X_eq(SIG.Xpol.bits:end);
-    Y_eq = Y_eq(SIG.Ypol.bits:end);
+    X_eq = X_eq(length(SIG.Xpol.bits):end);
+    Y_eq = Y_eq(length(SIG.Ypol.bits):end);
     % scatterplot(X_eq(1e5:end));
     % title('Constellation after Carrier Synchronization');
     %%
@@ -118,19 +120,34 @@ for index = 1:length(OSNR_dB)
     Y_Ber_Tot(index) = min(Y_BER);
 end
 %%
-BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
-
-BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
-
-figure();
-semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
-xlim([1,14]);
-grid on;
-hold on;
-semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
-title(sprintf('%s BER curve',MODULATIONS(r)));
-legend('Theoretical BER', 'Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
-xlabel('OSNR [dB]', 'Interpreter','latex');
-hold off;
-fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
-fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
+if r == 1
+    BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
+    BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
+    figure();
+    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+    xlim([1,14]);
+    grid on;
+    hold on;
+    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+    title(sprintf('%s BER curve',MODULATIONS(r)));
+    legend('Theoretical BER','Simulated BER - CMA', 'Interpreter', 'latex');
+    xlabel('OSNR [dB]', 'Interpreter','latex');
+    hold off;
+    fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
+    fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
+else
+    BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
+    BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
+    figure();
+    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+    % xlim([1,14]);
+    grid on;
+    hold on;
+    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+    title(sprintf('%s BER curve',MODULATIONS(r)));
+    legend('Theoretical BER','Simulated BER - CMA', 'Interpreter', 'latex');
+    xlabel('OSNR [dB]', 'Interpreter','latex');
+    hold off;
+    fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
+    fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
+end

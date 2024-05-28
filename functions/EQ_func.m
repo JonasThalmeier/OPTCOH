@@ -19,7 +19,9 @@ function [out] = EQ_func_1(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg)
 
 % Constants
 N1 = 1e3;
-R_CMA = 1;
+N2 = 1e4;
+R_CMA = sqrt(2);
+R_RDE = [sqrt(2),sqrt(10),sqrt(18)];
 SpS = 2;
 NOut = 0;
 train_len = length(Xorg);
@@ -62,7 +64,9 @@ for i = 1:OutLength
         w2H = conj(w1V(end:-1:1,1)) ; w2V = -conj(w1H(end:-1:1,1));
     end
     % Update filter coefficients
-    if alg == "CMA"
+    if alg == "RDE" && i>N2
+        [w1V, w1H, w2V, w2H] = RDE(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, R_RDE, mu);
+    elseif alg == "CMA" || alg == "RDE"
         [w1V, w1H, w2V, w2H] = CMA(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, R_CMA, mu);
     elseif alg == "LMS"
         [w1V, w1H, w2V, w2H] = LMS(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, mu, Xorg(i), Yorg(i));
@@ -86,6 +90,16 @@ w1V = w1V + Mu * xV * (R - abs(y1).^2) * conj(y1);
 w1H = w1H + Mu * xH * (R - abs(y1).^2) * conj(y1);
 w2V = w2V + Mu * xV * (R - abs(y2).^2) * conj(y2);
 w2H = w2H + Mu * xH * (R - abs(y2).^2) * conj(y2);
+end
+
+function [w1V, w1H, w2V, w2H] = RDE(xV, xH, y1, y2, w1V, w1H, w2V, w2H, R, Mu)
+% Radius for output y1 and output y2:
+[~,r1] = min(abs(R-abs(y1))) ; [~,r2] = min(abs(R-abs(y2)));
+%Updating the filters:
+w1V = w1V + Mu*xV*(R(r1)^2-abs(y1).^2)*conj(y1);
+w1H = w1H + Mu*xH*(R(r1)^2-abs(y1).^2)*conj(y1);
+w2V = w2V + Mu*xV*(R(r2)^2-abs(y2).^2)*conj(y2);
+w2H = w2H + Mu*xH*(R(r2)^2-abs(y2).^2)*conj(y2);
 end
 
 function [w1V, w1H, w2V, w2H] = LMS(xV, xH, y1, y2, w1V, w1H, w2V, w2H, Mu, Xorg, Yorg)
