@@ -1,4 +1,4 @@
-function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg,hinit)
+function [out] = EQ_func_1(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EQ_func performs equalization on a dual polarization signal using
 % either the CMA or LMS algorithm.
@@ -18,8 +18,9 @@ function [out] = EQ_func(Xpol_in,Ypol_in,mu,NTaps,alg,Xorg,Yorg,hinit)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Constants
+N1 = 1e3;
 R_CMA = 1;
-SpS = 1;
+SpS = 2;
 NOut = 0;
 train_len = length(Xorg);
 
@@ -28,9 +29,11 @@ x = [Xpol_in, Ypol_in];
 x = [x(end-floor(NTaps/2)+1:end,:) ; x ; x(1:floor(NTaps/2),:)];
 xV = convmtx(x(:,1).', NTaps);
 xH = convmtx(x(:,2).', NTaps);
+xV = xV(:,NTaps:SpS:end-NTaps+1);
+xH = xH(:,NTaps:SpS:end-NTaps+1);
 
 % Calculate output length
-OutLength = floor((size(x,1) - NTaps + 1));
+OutLength = floor((size(x,1) - NTaps + 1)/2);
 clearvars x
 
 % Initialize outputs
@@ -38,30 +41,26 @@ y1 = zeros(OutLength, 1);
 y2 = zeros(OutLength, 1);
 
 % Initialize filter coefficients
-w1V = randi([0 1000],NTaps, 1);
-w1V = w1V./sum(w1V);
+
+w1V = zeros(NTaps, 1);
 w1H = zeros(NTaps, 1);
-w2V = randi([0 1000],NTaps, 1);
-w2V = w2V./sum(w2V);
+w2V = zeros(NTaps, 1);
 w2H = zeros(NTaps, 1);
-w1Vmat = zeros(NTaps, OutLength);
-w1Hmat = zeros(NTaps, OutLength);
-w2Vmat = zeros(NTaps, OutLength);
-w2Hmat = zeros(NTaps, OutLength);
-%w1V(floor(NTaps/2) + 1) = 1;
-w1H(floor(NTaps/2) + 1) = 1;
-%w2V(floor(NTaps/2) + 1) = 1;
-w2H(floor(NTaps/2) + 1) = 1;
+w1V(floor(NTaps/2) + 1) = 1;
+% w2V(floor(NTaps/2) + 1) = 1;
+% w2H(floor(NTaps/2) + 1) = 1;
+% w1H(floor(NTaps/2) + 1) = 1;
+
 
 for i = 1:OutLength
     % Calculate the outputs
-    % y1(i) = w1V'*xV(:,i) + w1H'*xH(:,i);
-    % y2(i) = w2V'*xV(:,i) + w2H'*xH(:,i);
-    w1Vmat(:,i) = w1V;
-    w2Hmat(:,i) = w2H;
-    y1(i) = w1V' * xV(:, i);
-    y2(i) = w2H' * xH(:, i);
-
+    y1(i) = w1V'*xV(:,i) + w1H'*xH(:,i);
+    y2(i) = w2V'*xV(:,i) + w2H'*xH(:,i);
+    % y1(i) = w1V' * xV(:, i);
+    % y2(i) = w2H' * xH(:, i);
+    if i == N1
+        w2H = conj(w1V(end:-1:1,1)) ; w2V = -conj(w1H(end:-1:1,1));
+    end
     % Update filter coefficients
     if alg == "CMA"
         [w1V, w1H, w2V, w2H] = CMA(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, R_CMA, mu);
@@ -72,9 +71,9 @@ for i = 1:OutLength
         end
     end
 end
-
-temp=w1Vmat./max(w1Vmat,[],1);
-mesh(abs(w1Vmat(:,1:100:train_len)));
+% 
+% temp=w1Vmat./max(w1Vmat,[],1);
+% mesh(abs(w1Vmat(:,1:100:train_len)));
 
 % Output samples
 out = [y1 y2];

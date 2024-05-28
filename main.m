@@ -6,14 +6,14 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 2;
+r = 1;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
 % Parameters
 SpS_down = 4;
 SpS_up = SIG.Sps/SpS_down;
-OSNR_dB = 40;
+OSNR_dB = 20;
 seq_lenght = length(SIG.Xpol.txSymb);
 
 if r == 1
@@ -36,25 +36,28 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB, SIG.symbolRate);
 [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB, SIG.symbolRate);
 
-scatterplot(X_distorted_AWGN,8);
-title('Noisy constellation, before filtering');
+% scatterplot(X_distorted_AWGN,8);
+% title('Noisy constellation, before filtering');
 
 % Recovering Chromatic Dispersion
 [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
 
-
 % Downsampling and Matched Flitering
 X_CD_rec = downsample(X_CD_rec, 4);
 Y_CD_rec = downsample(Y_CD_rec, 4);
+
 [X_matched,Y_matched] = Matched_filtering(X_CD_rec, Y_CD_rec, PulseShaping.b_coeff);
 
-scatterplot(X_matched,2);
+scatterplot(X_matched(1:2:end),1);
 title('Filtered constellation');
+%%
 % Carrier Synchroniazation and Normalization
 if r==1
-    carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 150);
-    [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
-    [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
+    mu = 1e-3;
+    XY_eq = EQ_func_1(X_CD_rec,Y_CD_rec,mu,9,"CMA",0,0);
+    XY_vit = vit_n_vit(XY_eq, 50e3, 64e9, 50, 1e-6, 2, 4, 10);
+    X_eq = XY_vit(:,1);
+    Y_eq = XY_vit(:,2);
 else
     carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 10, 'NormalizedLoopBandwidth',1e-2);
     [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
@@ -65,9 +68,9 @@ X_Power = mean(abs((X_eq)).^2);
 X_eq = X_eq/sqrt(X_Power/10);
 Y_Power = mean(abs((Y_eq)).^2);
 Y_eq = Y_eq/sqrt(Y_Power/10);
-scatterplot(X_eq);
+scatterplot(X_eq(1e5:end));
 title('Constellation after Carrier Synchronization');
-
+%%
 % Finding the constellations right orientation
 X_BER = zeros(1,4);
 Y_BER = zeros(1,4);
