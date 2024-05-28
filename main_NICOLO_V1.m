@@ -20,93 +20,156 @@ end
 TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
 TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
 
-%CMA
+%% IMPAIRMENTS PART
+% Create delay and phase convolved signals
+[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
-[X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(SIG.Xpol.txSig, SIG.Sps, M, 11, SIG.symbolRate);
-[Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(SIG.Ypol.txSig, SIG.Sps, M, 11, SIG.symbolRate);
-
-TX_sig = [downsample(X_distorted_AWGN,4) downsample(Y_distorted_AWGN,4)];
-
-N_tap = 9;
-mu = 1e-3;
-
-h_xx = [0 0 0 0 1 0 0 0 0];
-h_xy = [0 0 0 0 0 0 0 0 0];
-h_yx = [0 0 0 0 0 0 0 0 0];
-h_yy = [0 0 0 0 1 0 0 0 0];
-
-h_X = [h_xx; h_xy];
-h_Y = [h_yx; h_yy];
-
-e_X = zeros(1, size(TX_sig,1)/2);
-e_Y = zeros(1, size(TX_sig,1)/2);
-
-X_out = zeros(size(TX_sig,1)/2,1);
-Y_out = zeros(size(TX_sig,1)/2,1);
-
-out_index = 0;
+%add chromatic dispersion
+[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
 
 
-for i = 1:2:size(TX_sig,1)
-    
-    if (i+N_tap-1>=size(TX_sig,1))
-
-        break;
-
-    else
-        out_index = out_index + 1;
-        X_out(out_index,:) = sum(conj(h_xx)'.*fliplr(TX_sig(i:i+N_tap-1,1)) + conj(h_xy)'.*fliplr(TX_sig(i:i+N_tap-1,2)));
-        Y_out(out_index,:) = sum(conj(h_yx)'.*fliplr(TX_sig(i:i+N_tap-1,1)) + conj(h_yy)'.*fliplr(TX_sig(i:i+N_tap-1,2)));
-
-%         X_out(out_index,:) = (sum(sum(fftfilt(TX_sig(i:i+N_tap-1,:),h_X'),1),2));
-%         Y_out(out_index,:) = (sum(sum(fftfilt(TX_sig(i:i+N_tap-1,:),h_Y'),1),2));
-    
-        e_X(out_index)  = 1-abs(X_out(out_index,:)).^2;
-        if isnan(e_X(out_index))
-            fprintf('IS NAN\n')
-            pause;
-        end
-        e_Y(out_index)  = (1-abs(Y_out(out_index,:)).^2);
-    
-        h_xx  = (h_xx' + mu * e_X(out_index) * fliplr(TX_sig(i:i+N_tap-1,1)).*conj(X_out(out_index,:)))';
-        h_xy  = (h_xy' + mu * e_X(out_index) * fliplr(TX_sig(i:i+N_tap-1,2)).*conj(X_out(out_index,:)))';
-        h_yx  = (h_yx' + mu * e_Y(out_index) * fliplr(TX_sig(i:i+N_tap-1,1)).*conj(Y_out(out_index,:)))';
-        h_yy  = (h_yy' + mu * e_Y(out_index) * fliplr(TX_sig(i:i+N_tap-1,2)).*conj(Y_out(out_index,:)))';
-    end
-
+% Adding the noise
+if r==1
+    OSNR_dB = 2:11;
+else
+    OSNR_dB = 9:19;
 end
 
-figure(), plot(e_X);
-figure(), plot(e_Y);
+X_Ber_Tot = zeros(1,length(OSNR_dB));
+Y_Ber_Tot = zeros(1,length(OSNR_dB));
 
-[m_x,I_x] = min(abs(X_out));
-[m_y,I_y] = min(abs(Y_out));
+%% CMA mine
 
-X_eq = X_out(22000:I_x-1,:);
-Y_eq = Y_out(22000:I_y-1,:);
+for index = 1:length(OSNR_dB)
+
+    [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
+    [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
+
+    % ----------------Compensation for CD-------------------
+    
+    [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
+
+    X_CD_rec = X_CD_rec(65536*8+1:end);
+    Y_CD_rec = Y_CD_rec(65536*8+1:end);
+   
+    X_CD_rec = downsample(X_CD_rec, 4);
+    Y_CD_rec = downsample(Y_CD_rec, 4);
+
+    if(rem(length(X_CD_rec),2) ~= 0)
+
+        X_CD_rec = X_CD_rec(2:end);
+        Y_CD_rec = Y_CD_rec(2:end);
+
+    end
+
+    TX_sig = [X_CD_rec Y_CD_rec];
+    
+    %CMA parameters
+    N_tap = 9;
+    mu = 1e-3;
+    
+    %Taps initialization
+    h_xx = [0 0 0 0 1 0 0 0 0];
+    h_xy = [0 0 0 0 0 0 0 0 0];
+    h_yx = [0 0 0 0 0 0 0 0 0];
+    h_yy = [0 0 0 0 1 0 0 0 0];
+       
+    e_X = zeros(1, size(TX_sig,1)/2);
+    e_Y = zeros(1, size(TX_sig,1)/2);
+    
+    X_out = zeros(size(TX_sig,1)/2,1);
+    Y_out = zeros(size(TX_sig,1)/2,1);
+    
+    out_index = 0;
+    
+    for i = 1:2:size(TX_sig,1)
+        
+        if (i+N_tap-1>=size(TX_sig,1))
+    
+            break;
+    
+        else
+            out_index = out_index + 1;
+            X_out(out_index,:) = sum(conj(h_xx)'.*fliplr(TX_sig(i:i+N_tap-1,1)) + conj(h_xy)'.*fliplr(TX_sig(i:i+N_tap-1,2)));
+            Y_out(out_index,:) = sum(conj(h_yx)'.*fliplr(TX_sig(i:i+N_tap-1,1)) + conj(h_yy)'.*fliplr(TX_sig(i:i+N_tap-1,2)));
+    
+    %         X_out(out_index,:) = (sum(sum(fftfilt(TX_sig(i:i+N_tap-1,:),h_X'),1),2));
+    %         Y_out(out_index,:) = (sum(sum(fftfilt(TX_sig(i:i+N_tap-1,:),h_Y'),1),2));
+        
+            e_X(out_index)  = 1-abs(X_out(out_index,:)).^2;
+            if isnan(e_X(out_index))
+                fprintf('IS NAN\n')
+                pause;
+            end
+            e_Y(out_index)  = (1-abs(Y_out(out_index,:)).^2);
+        
+            h_xx  = (h_xx' + mu * e_X(out_index) * fliplr(TX_sig(i:i+N_tap-1,1)).*conj(X_out(out_index,:)))';
+            h_xy  = (h_xy' + mu * e_X(out_index) * fliplr(TX_sig(i:i+N_tap-1,2)).*conj(X_out(out_index,:)))';
+            h_yx  = (h_yx' + mu * e_Y(out_index) * fliplr(TX_sig(i:i+N_tap-1,1)).*conj(Y_out(out_index,:)))';
+            h_yy  = (h_yy' + mu * e_Y(out_index) * fliplr(TX_sig(i:i+N_tap-1,2)).*conj(Y_out(out_index,:)))';
+        end
+    
+    end
+    
+    if (index==length(OSNR_dB))
+        figure(), plot(e_X), title('CMA error Xpol','Interpreter','latex'), hold on, xline(22000, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
+        figure(), plot(e_Y), title('CMA error Ypol','Interpreter','latex'), hold on, xline(22000, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
+    end
+    
+    [m_x,I_x] = min(abs(X_out));
+    [m_y,I_y] = min(abs(Y_out));
+    
+    X_eq_CMA = X_out(22000:I_x-1,:);
+    Y_eq_CMA = Y_out(22000:I_y-1,:);
 
 
-X_BER = zeros(1,4);
-Y_BER = zeros(1,4);
-j=1;
+ %------------------Delay&Phase recovery ---------------------
+    
+    if r==1
+        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 150);
+        [X_eq, phEstX] = carrSynch(X_eq_CMA);
+        [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
+    else
+        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 150, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+        [X_test, phEstX_test] = carrSynch(X_matched(1:2:end));
+        [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
+        [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
+    end
+    
+    
+    if (index==length(OSNR_dB))
+        scatterplot(X_eq);
+        title(sprintf('%s Xpol after MF and phase recovery, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
+    end
 
-for i=0:pi/2:3/2*pi
+    X_BER = zeros(1,4);
+    Y_BER = zeros(1,4);
+    j=1;
+    
+    for i=0:pi/2:3/2*pi
     
 %     fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
     
     % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
     
-    transient_Xpol = abs(finddelay(X_eq(1:65536), SIG.Xpol.txSymb));
-    transient_Ypol = abs(finddelay(Y_eq(1:65536), SIG.Ypol.txSymb));
+    transient_Xpol = abs(finddelay(X_eq(1:65536*2), SIG.Xpol.txSymb));
+    transient_Ypol = abs(finddelay(Y_eq(1:65536*2), SIG.Ypol.txSymb));
     
-    fprintf('Transient Xpol: %d\n', transient_Xpol)
-    fprintf('Transient Ypol: %d\n', transient_Ypol)
+    if(index==length(OSNR_dB))
+        fprintf('Transient Xpol: %d\n', transient_Xpol)
+        fprintf('Transient Ypol: %d\n', transient_Ypol)
+    end
     
     X_RX = X_eq*exp(1i*i);
     X_RX = X_RX(transient_Xpol+1:end);
     Y_RX = Y_eq*exp(1i*i);
     Y_RX = Y_RX(transient_Ypol+1:end);
-  
+
+    if (index==length(OSNR_dB) && j==1)
+        scatterplot(X_RX);
+        title(sprintf('%s Xpol after delay recovery, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
+    end
+    
     if r==1
         %fprintf('The tracked moduluation is: QPSK\n');
           [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
@@ -126,32 +189,16 @@ for i=0:pi/2:3/2*pi
     
        j=j+1;
     
-end
+    end
     
-    X_Ber_Tot = min(X_BER);
-    Y_Ber_Tot = min(Y_BER);
-    fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
-    fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
-    
-
-%% IMPAIRMENTS PART
-% Create delay and phase convolved signals
-[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig);
-
-%add chromatic dispersion
-[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
-
-
-% Adding the noise
-if r==1
-    OSNR_dB = 2:11;
-else
-    OSNR_dB = 9:19;
+    X_Ber_Tot(index) = min(X_BER);
+    Y_Ber_Tot(index) = min(Y_BER);
+    fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot(index));
+    fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot(index));
 end
 
-X_Ber_Tot = zeros(1,length(OSNR_dB));
-Y_Ber_Tot = zeros(1,length(OSNR_dB));
 
+fprintf('\n');
 %%
 %--------------------MATCHED FILTER ----------------------------------------
 
@@ -434,8 +481,8 @@ if r==1
     BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
 
     BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
-    BER_MED_CMA = 0.5 * (X_Ber_Tot_CMA + Y_Ber_Tot_CMA);
-    BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
+%     BER_MED_CMA = 0.5 * (X_Ber_Tot_CMA + Y_Ber_Tot_CMA);
+%     BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
 
     figure();
     semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
@@ -443,8 +490,8 @@ if r==1
     grid on;
     hold on;
     semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1, 'LineStyle','-.');
-    semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
-    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');    
+%     semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
+%     semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');    
     title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
     legend('Theoretical BER', 'Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
