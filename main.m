@@ -59,13 +59,25 @@ for index = 1:length(OSNR_dB)
     % Carrier Synchroniazation and Normalization
     if r==1
         mu = 1e-3;
-        XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,9,"CMA",0,0);
-        XY_vit = vit_n_vit(XY_eq, 50e3, 64e9, OSNR_dB(index), 1, 2, 4, 100);
+        NTaps = 9;
+        N1 = 1e3;
+        N2 = 1e4;
+        XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,NTaps,"CMA",N1,N2);
+
+        Delta_nu = 50e3; % Laser line width
+        Rs = 64e9;
+        Es = 1; % Symbol energy (=radius)
+        Npol = 2;
+        windowlen = 100;
+        XY_vit = vit_n_vit(XY_eq, Delta_nu, SIG.symbolRate, OSNR_dB(index), Es, Npol, M, windowlen);
         X_eq = XY_vit(:,1);
         Y_eq = XY_vit(:,2);
     else
         mu = 1e-3;
-        XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,9,"RDE",0,0);
+        NTaps = 9;
+        N1 = 1e3;
+        N2 = 1e4;
+        XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,NTaps,"RDE",N1,N2);
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 10, 'NormalizedLoopBandwidth',1e-2);
         [X_eq, phEstX] = carrSynch(XY_eq(:,1));
         [Y_eq, phEstY] = carrSynch(XY_eq(:,2));
