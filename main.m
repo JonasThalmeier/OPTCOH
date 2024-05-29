@@ -5,16 +5,15 @@ close all;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 
 % Parameters
 SpS_down = 4;
 SpS_up = SIG.Sps/SpS_down;
-OSNR_dB = 3:14;
+OSNR_dB = 5:1:18;
 seq_lenght = length(SIG.Xpol.txSymb);
-mu = logspace(-3.4,-3,8);
 
 if r == 1
     M = 4;
@@ -66,6 +65,7 @@ for index = 1:length(OSNR_dB)
         XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,NTaps,"CMA",N1,N2);
 
         Delta_nu = 50e3; % Laser line width
+        Rs = 64e9;
         Es = 1; % Symbol energy (=radius)
         Npol = 2;
         windowlen = 100;
@@ -78,7 +78,6 @@ for index = 1:length(OSNR_dB)
         N1 = 1e3;
         N2 = 1e4;
         XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,NTaps,"RDE",N1,N2);
-        % scatterplot(XY_eq(1e5:end,1)); title('Post EQ, pre carrSync');
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 10, 'NormalizedLoopBandwidth',1e-2);
         [X_eq, phEstX] = carrSynch(XY_eq(:,1));
         [Y_eq, phEstY] = carrSynch(XY_eq(:,2));
@@ -94,11 +93,9 @@ for index = 1:length(OSNR_dB)
     % title('Constellation after Carrier Synchronization');
     %%
     % Finding the constellations right orientation
-    X_BER = zeros(4,4);
-    Y_BER = zeros(4,4);
+    X_BER = zeros(1,4);
+    Y_BER = zeros(1,4);
     j=1;
-    k=1;
-    for rot=0:pi/2:3/2*pi
     for i=0:pi/2:3/2*pi
         fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
 
@@ -113,9 +110,7 @@ for index = 1:length(OSNR_dB)
         X_RX = X_RX((N-1)*seq_lenght+transient_Xpol+1:N*seq_lenght+transient_Xpol+transient_Xpol);
         Y_RX = Y_eq*exp(1i*i);
         Y_RX = Y_RX((N-1)*seq_lenght+transient_Ypol+1:N*seq_lenght+transient_Xpol+transient_Ypol);
-        
-        X_RX = X_RX.*cos(rot)+Y_RX.*sin(rot);
-        Y_RX = -X_RX.*sin(rot)+Y_RX.*cos(rot);
+
 
         if r==1
             fprintf('The tracked moduluation is: QPSK\n');
@@ -129,14 +124,12 @@ for index = 1:length(OSNR_dB)
             %
             [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
         end
-        X_BER(k,j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
-        Y_BER(k,j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
+        X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
+        Y_BER(j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
         j=j+1;
-        k=k+1;
     end
-    end
-    X_Ber_Tot(index) = min(X_BER,[],'all');
-    Y_Ber_Tot(index) = min(Y_BER,[],'all');
+    X_Ber_Tot(index) = min(X_BER);
+    Y_Ber_Tot(index) = min(Y_BER);
 end
 %%
 if r == 1
