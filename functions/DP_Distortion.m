@@ -28,6 +28,7 @@ stepsY = sqrt(var/samp_rate)*randn(1,lenY);
 phaseY = cumsum(stepsY)+phase_init;
 
 
+
 % Rotate constellation
 delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phaseX)'; %add zeros at beginning to simulate delay
 delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phaseY)';

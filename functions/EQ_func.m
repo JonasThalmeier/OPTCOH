@@ -18,10 +18,10 @@ function [out] = EQ_func_1(Xpol_in,Ypol_in,mu,NTaps,alg,N1,N2)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Constants
-N1 = 1e3;
-N2 = 1e4;
+
 R_CMA = sqrt(2);
-R_RDE = [sqrt(2),sqrt(10),sqrt(18)];
+% R_RDE = .25*(sqrt(2)+2*sqrt(10)+sqrt(18)).*[sqrt(2),sqrt(10),sqrt(18)];
+R_RDE = sqrt(2).*[1/sqrt(5) 1 3/sqrt(5)];
 SpS = 2;
 NOut = 0;
 % train_len = length(Xorg);
