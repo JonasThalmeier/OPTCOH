@@ -12,7 +12,7 @@ load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 % Parameters
 SpS_down = 4;
 SpS_up = SIG.Sps/SpS_down;
-OSNR_dB = 5:1:18;
+OSNR_dB = 5:1:16;
 seq_lenght = length(SIG.Xpol.txSymb);
 
 if r == 1
@@ -94,42 +94,48 @@ for index = 1:length(OSNR_dB)
     %%
     % Finding the constellations right orientation
     X_BER = zeros(1,4);
-    Y_BER = zeros(1,4);
-    j=1;
-    for i=0:pi/2:3/2*pi
-        fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
+    Y_BER = zeros(1,4);   
+    k=1;
+    for rot=0:pi/2:3/2*pi
+        j=1;
+        for i=0:pi/2:3/2*pi
+            fprintf('---------The phase tried is (degrees): %d-----------\n', (mean(i) *180 /pi));
 
-        transient_Xpol = abs(finddelay(X_eq(1:seq_lenght), SIG.Xpol.txSymb));
-        transient_Ypol = abs(finddelay(Y_eq(1:seq_lenght), SIG.Ypol.txSymb));
+            transient_Xpol = abs(finddelay(X_eq(1:seq_lenght), SIG.Xpol.txSymb));
+            transient_Ypol = abs(finddelay(Y_eq(1:seq_lenght), SIG.Ypol.txSymb));
 
-        fprintf('Transient Xpol: %d\n', transient_Xpol)
-        fprintf('Transient Ypol: %d\n', transient_Ypol)
+            fprintf('Transient Xpol: %d\n', transient_Xpol)
+            fprintf('Transient Ypol: %d\n', transient_Ypol)
 
-        N = 5;
-        X_RX = X_eq*exp(1i*i);
-        X_RX = X_RX((N-1)*seq_lenght+transient_Xpol+1:N*seq_lenght+transient_Xpol+transient_Xpol);
-        Y_RX = Y_eq*exp(1i*i);
-        Y_RX = Y_RX((N-1)*seq_lenght+transient_Ypol+1:N*seq_lenght+transient_Xpol+transient_Ypol);
+            N = 5;
+            X_RX = X_eq*exp(1i*i);
+            X_RX = X_RX((N-1)*seq_lenght+transient_Xpol+1:N*seq_lenght+transient_Xpol+transient_Xpol);
+            Y_RX = Y_eq*exp(1i*i);
+            Y_RX = Y_RX((N-1)*seq_lenght+transient_Ypol+1:N*seq_lenght+transient_Xpol+transient_Ypol);
+            X_RX = X_RX.*cos(rot)+Y_RX.*sin(rot);
+            Y_RX = -X_RX.*sin(rot)+Y_RX.*cos(rot);
 
 
-        if r==1
-            fprintf('The tracked moduluation is: QPSK\n');
-            [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
-        else
-            fprintf('The tracked moduluation is: 16-QAM\n');
-            %         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
-            %         X_demappedBits = qamdemod(X_RX, M, MyConst, OutputType='bit', PlotConstellation=true);
-            %         N = length(X_demappedBits)/4;
-            %         X_demappedBits = reshape(X_demappedBits, 4, N).';
-            %
-            [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
+            if r==1
+                fprintf('The tracked moduluation is: QPSK\n');
+                [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QPSK_demapping(X_RX, Y_RX);
+            else
+                fprintf('The tracked moduluation is: 16-QAM\n');
+                %         MyConst = [0 1 3 2 4 5 7 6 12 13 15 14 8 9 11 10];
+                %         X_demappedBits = qamdemod(X_RX, M, MyConst, OutputType='bit', PlotConstellation=true);
+                %         N = length(X_demappedBits)/4;
+                %         X_demappedBits = reshape(X_demappedBits, 4, N).';
+                %
+                [X_demappedBits,X_demappedSymb,Y_demappedBits, Y_demappedSymb] = QAM_16_demapping(X_RX,Y_RX);
+            end
+            X_BER(k,j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
+            Y_BER(k,j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
+            j=j+1;
         end
-        X_BER(j) = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits),:))/(length(X_demappedBits)*(log2(M)));
-        Y_BER(j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
-        j=j+1;
+        k=k+1;
     end
-    X_Ber_Tot(index) = min(X_BER);
-    Y_Ber_Tot(index) = min(Y_BER);
+    X_Ber_Tot(index) = min(X_BER,[],'all');
+    Y_Ber_Tot(index) = min(Y_BER,[],'all');
 end
 %%
 if r == 1
