@@ -2,7 +2,6 @@ function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Dist
 %Performs delay, phase interferences and convolution
 
 delay = randi(floor(length(TX_Xpol)/160),1); % maximum delay of half a period
-delay = 0;
 
 fprintf('The random delay introduced is (x8): %d\n', delay);
 
@@ -30,14 +29,14 @@ phaseY = cumsum(stepsY)+phase_init;
 
 
 % Rotate constellation
-delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phaseX)'; %add zeros at beginning to simulate delay
-delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phaseY)';
+% delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phaseX)'; %add zeros at beginning to simulate delay
+% delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phaseY)';
 
 % ------------------Jones Matrix (Pol.rotation)-----------------------------
 % How to handle lenX~=lenY????
 kappa = 0;
-% Theta = randi([0,40]) *pi / 180;
-Theta = 40*pi / 180;
+Theta = randi([0,360]) *pi / 180;
+% Theta = 100*pi / 180;
 TX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']';
 TX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']';
 J = zeros(2, 2, lenX);
@@ -48,8 +47,7 @@ R = [cos(Theta),-sin(Theta);sin(Theta),cos(Theta)];
 JR = zeros(2, 2, lenX);
 for n = 1:lenX
     JR(:,:,n) = R * J(:,:,n);
-    dist = [TX_Xpol(n),TX_Ypol(n)]*JR(:,:,n);
-    delay_phase_distorted_RX_Xpol(n) = dist(1);
-    delay_phase_distorted_RX_Ypol(n) = dist(2);
 end
+delay_phase_distorted_RX_Xpol = TX_Xpol.*squeeze(JR(1,1,:))+TX_Ypol.*squeeze(JR(1,2,:));
+delay_phase_distorted_RX_Ypol = TX_Xpol.*squeeze(JR(2,1,:))+TX_Ypol.*squeeze(JR(2,2,:));
 end
