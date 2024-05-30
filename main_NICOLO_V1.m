@@ -50,9 +50,16 @@ for index = 1:length(OSNR_dB)
     theta = pi/4;
     phi = pi/3;
 
-    X_distorted_AWGN_Jones = X_distorted_AWGN * cos(theta) + Y_distorted_AWGN * exp(-1i*phi)*sin(theta);
-    Y_distorted_AWGN_Jones = Y_distorted_AWGN * cos(theta) - X_distorted_AWGN * exp(1i*phi)*sin(theta);
+    R = [cos(theta) exp(-1i*phi)*sin(theta);-exp(1i*phi)*sin(theta) cos(theta)];
 
+    XY_AWGN = [X_distorted_AWGN'; Y_distorted_AWGN'];
+    Sig_distorted_AWGN_Jones = R*XY_AWGN;
+
+    X_distorted_AWGN_Jones = Sig_distorted_AWGN_Jones(1,:)';
+    Y_distorted_AWGN_Jones = Sig_distorted_AWGN_Jones(2,:)';
+
+%     X_distorted_AWGN_Jones = X_distorted_AWGN * cos(theta) + Y_distorted_AWGN * exp(-1i*phi)*sin(theta);
+%     Y_distorted_AWGN_Jones = Y_distorted_AWGN * cos(theta) - X_distorted_AWGN * exp(1i*phi)*sin(theta);
 
     % ----------------Compensation for CD-------------------
     
@@ -71,16 +78,16 @@ for index = 1:length(OSNR_dB)
 
     end
 
-    X_Power = mean(abs((X_CD_rec)).^2);
-    X_CD_rec_norm = X_CD_rec/sqrt(X_Power/power_norm);
+%     X_Power = mean(abs((X_CD_rec)).^2);
+%     X_CD_rec_norm = X_CD_rec/sqrt(X_Power/power_norm);
+% 
+%     Y_Power = mean(abs((Y_CD_rec)).^2);
+%     Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/power_norm);
 
-    Y_Power = mean(abs((Y_CD_rec)).^2);
-    Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/power_norm);
-
-    TX_sig = [X_CD_rec_norm Y_CD_rec_norm];
+    TX_sig = [X_CD_rec'; Y_CD_rec'];
     
     %CMA parameters
-    N_tap = 47;
+    N_tap = 15;
     mu = 1e-4;
     
     %Taps initialization
@@ -89,50 +96,49 @@ for index = 1:length(OSNR_dB)
     h_yx = zeros(1,N_tap);
     h_yy = zeros(1,N_tap);
 
-    h_xx(ceil(N_tap/2)) = 0;
-    h_yy(ceil(N_tap/2)) = 1;
+    h_xx(ceil(N_tap/2)) = cos(pi/6);
+    h_yy(ceil(N_tap/2)) = cos(pi/6);
 
-    h_xy(ceil(N_tap/2)) = 1;
-    h_yx(ceil(N_tap/2)) = 1;
+    h_xy(ceil(N_tap/2)) = exp(-1i*pi/5)*sin(pi/6);
+    h_yx(ceil(N_tap/2)) = -exp(1i*pi/5)*sin(pi/6);
        
     e_X = zeros(1, size(TX_sig,1)/2);
     e_Y = zeros(1, size(TX_sig,1)/2);
     
-    X_out = zeros(size(TX_sig,1)/2,1);
-    Y_out = zeros(size(TX_sig,1)/2,1);
+    X_out = zeros(1,size(TX_sig,1)/2);
+    Y_out = zeros(1,size(TX_sig,1)/2);
     
     out_index = 0;
     
-    for i = 1:2:size(TX_sig,1)
+    for i = 1:2:size(TX_sig,2)
         
-        if (i+N_tap-1>=size(TX_sig,1))
+        if (i+N_tap-1>=size(TX_sig,2))
     
             break;
     
         else
             out_index = out_index + 1;
-            X_out(out_index,:) = sum(conj(h_xx)'.*fliplr(TX_sig(i:i+N_tap-1,1)) + conj(h_xy)'.*fliplr(TX_sig(i:i+N_tap-1,2)));
-            Y_out(out_index,:) = sum(conj(h_yx)'.*fliplr(TX_sig(i:i+N_tap-1,1)) + conj(h_yy)'.*fliplr(TX_sig(i:i+N_tap-1,2)));
-    
-    %         X_out(out_index,:) = (sum(sum(fftfilt(TX_sig(i:i+N_tap-1,:),h_X'),1),2));
-    %         Y_out(out_index,:) = (sum(sum(fftfilt(TX_sig(i:i+N_tap-1,:),h_Y'),1),2));
-        
-            e_X(out_index)  = 1-abs(X_out(out_index,:)).^2;
+            X_out(out_index) = sum(conj(h_xx).*fliplr(TX_sig(1,i:i+N_tap-1)) + conj(h_xy).*fliplr(TX_sig(2,i:i+N_tap-1)));
+            Y_out(out_index) = sum(conj(h_yx).*fliplr(TX_sig(1,i:i+N_tap-1)) + conj(h_yy).*fliplr(TX_sig(2,i:i+N_tap-1)));
+          
+            e_X(out_index)  = 1-abs(X_out(out_index)).^2;
             if isnan(e_X(out_index))
                 fprintf('IS NAN\n')
                 pause;
             end
-            e_Y(out_index)  = (1-abs(Y_out(out_index,:)).^2);
+            e_Y(out_index)  = (1-abs(Y_out(out_index)).^2);
         
-            h_xx  = (h_xx' + mu * e_X(out_index) * fliplr(TX_sig(i:i+N_tap-1,1)).*conj(X_out(out_index,:)))';
-            h_xy  = (h_xy' + mu * e_X(out_index) * fliplr(TX_sig(i:i+N_tap-1,2)).*conj(X_out(out_index,:)))';
-            h_yx  = (h_yx' + mu * e_Y(out_index) * fliplr(TX_sig(i:i+N_tap-1,1)).*conj(Y_out(out_index,:)))';
-            h_yy  = (h_yy' + mu * e_Y(out_index) * fliplr(TX_sig(i:i+N_tap-1,2)).*conj(Y_out(out_index,:)))';
+            h_xx  = h_xx + mu * e_X(out_index) * fliplr(TX_sig(1,i:i+N_tap-1)).*conj(X_out(out_index));
+            h_xy  = h_xy + mu * e_X(out_index) * fliplr(TX_sig(2,i:i+N_tap-1)).*conj(X_out(out_index));
+            h_yx  = h_yx + mu * e_Y(out_index) * fliplr(TX_sig(1,i:i+N_tap-1)).*conj(Y_out(out_index));
+            h_yy  = h_yy + mu * e_Y(out_index) * fliplr(TX_sig(2,i:i+N_tap-1)).*conj(Y_out(out_index));
         end
     
     end
     
-    cut = 92000;
+    X_out = X_out';
+    Y_out = Y_out';
+    cut = 120000;
 
 
     figure(), plot(e_X), title(sprintf('CMA error Xpol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
@@ -142,8 +148,8 @@ for index = 1:length(OSNR_dB)
     [m_x,I_x] = min(abs(X_out));
     [m_y,I_y] = min(abs(Y_out));
     
-    X_eq_CMA = X_out(cut:I_x-1,:);
-    Y_eq_CMA = Y_out(cut:I_y-1,:);
+    X_eq_CMA = X_out(cut:end,:);
+    Y_eq_CMA = Y_out(cut:end,:);
 
 
  %------------------Delay&Phase recovery ---------------------
