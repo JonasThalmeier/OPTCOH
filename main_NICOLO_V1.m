@@ -6,7 +6,7 @@ clc;
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('C:\Users\utente\Documents\GitHub\OPTCOH\TXsequences\TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 if r == 1
@@ -32,7 +32,7 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 if r==1
     OSNR_dB = 8:11;
 else
-    OSNR_dB = 9:19;
+    OSNR_dB = 14:18;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
@@ -78,17 +78,23 @@ for index = 1:length(OSNR_dB)
 
     end
 
-%     X_Power = mean(abs((X_CD_rec)).^2);
-%     X_CD_rec_norm = X_CD_rec/sqrt(X_Power/power_norm);
-% 
-%     Y_Power = mean(abs((Y_CD_rec)).^2);
-%     Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power/power_norm);
+    X_Power = mean(abs((X_CD_rec)).^2);
+    X_CD_rec_norm = X_CD_rec/sqrt(X_Power);
+ 
+    Y_Power = mean(abs((Y_CD_rec)).^2);
+    Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power);
 
     TX_sig = [X_CD_rec'; Y_CD_rec'];
     
     %CMA parameters
-    N_tap = 15;
-    mu = 1e-4;
+    if r==1
+        N_tap = 15;
+        mu = 1e-4;
+    else
+        N_tap = 25;
+        mu = 7e-3; %7e-3
+    end
+
     
     %Taps initialization
     h_xx = zeros(1,N_tap);
@@ -96,11 +102,23 @@ for index = 1:length(OSNR_dB)
     h_yx = zeros(1,N_tap);
     h_yy = zeros(1,N_tap);
 
-    h_xx(ceil(N_tap/2)) = cos(pi/6);
-    h_yy(ceil(N_tap/2)) = cos(pi/6);
+    if r==1
+        h_xx(ceil(N_tap/2)) = cos(pi/6);
+        h_yy(ceil(N_tap/2)) = cos(pi/6);
+       
+    
+        h_xy(ceil(N_tap/2)) = exp(-1i*pi/5)*sin(pi/6);
+        h_yx(ceil(N_tap/2)) = -exp(1i*pi/5)*sin(pi/6);
 
-    h_xy(ceil(N_tap/2)) = exp(-1i*pi/5)*sin(pi/6);
-    h_yx(ceil(N_tap/2)) = -exp(1i*pi/5)*sin(pi/6);
+    else
+        h_xx(ceil(N_tap/2)) = cos(pi/4);
+        h_yy(ceil(N_tap/2)) = cos(pi/4);
+       
+    
+        h_xy(ceil(N_tap/2)) = exp(-1i*pi/4)*sin(pi/4);
+        h_yx(ceil(N_tap/2)) = -exp(1i*pi/4)*sin(pi/4);
+    end
+   
        
     e_X = zeros(1, size(TX_sig,1)/2);
     e_Y = zeros(1, size(TX_sig,1)/2);
@@ -109,6 +127,8 @@ for index = 1:length(OSNR_dB)
     Y_out = zeros(1,size(TX_sig,1)/2);
     
     out_index = 0;
+    RDE_flag = 0;
+    R_2 = [1/sqrt(5) 1 3/sqrt(5)];
     
     for i = 1:2:size(TX_sig,2)
         
@@ -121,12 +141,63 @@ for index = 1:length(OSNR_dB)
             X_out(out_index) = sum(conj(h_xx).*fliplr(TX_sig(1,i:i+N_tap-1)) + conj(h_xy).*fliplr(TX_sig(2,i:i+N_tap-1)));
             Y_out(out_index) = sum(conj(h_yx).*fliplr(TX_sig(1,i:i+N_tap-1)) + conj(h_yy).*fliplr(TX_sig(2,i:i+N_tap-1)));
           
-            e_X(out_index)  = 1-abs(X_out(out_index)).^2;
-            if isnan(e_X(out_index))
-                fprintf('IS NAN\n')
-                pause;
+            rX = abs(X_out(out_index))^2;
+            rY = abs(Y_out(out_index))^2;
+
+            if out_index>170000 && RDE_flag==0
+                RDE_flag = 1;
+                if r==1
+                    mu = 8e-5;
+                else
+                    mu = 2e-4;
+                    
+                end
             end
-            e_Y(out_index)  = (1-abs(Y_out(out_index)).^2);
+
+            if r==1 || (RDE_flag==0 && out_index<65000)
+                if r==1
+                     RX_2  = 1;
+                     RY_2  = 1;
+                else
+                    RX_2  = 1.32;
+                    RY_2  = 1.32;
+                end
+            else
+                if rX < 0.6 
+                   RX_2 = 0.2;
+
+                elseif rX > 1.4 
+                        RX_2 = 1.8;
+
+                else
+                        RX_2 = 1.0;
+                end
+
+                if rY < 0.6 
+                   RY_2 = 0.2;
+
+                elseif rY > 1.4 
+                        RY_2 = 1.8;
+
+                else
+                        RY_2 = 1.0;
+                end
+                
+%                 % Radius for output y1 and output y2:
+%                 [~,r1] = min(abs(R_2.^2-rX)) ; 
+%                 [~,r2] = min(abs(R_2.^2-rY));
+% 
+%                 RX_2 = R_2(r1)^2;  
+%                 RY_2 = R_2(r2)^2;  
+               
+            end 
+
+            e_X(out_index)  = RX_2 - rX;
+                if isnan(e_X(out_index))
+                    fprintf('IS NAN\n')
+                    pause;
+                end
+            e_Y(out_index)  = RY_2 - rY;
         
             h_xx  = h_xx + mu * e_X(out_index) * fliplr(TX_sig(1,i:i+N_tap-1)).*conj(X_out(out_index));
             h_xy  = h_xy + mu * e_X(out_index) * fliplr(TX_sig(2,i:i+N_tap-1)).*conj(X_out(out_index));
@@ -159,10 +230,13 @@ for index = 1:length(OSNR_dB)
         [X_eq, phEstX] = carrSynch(X_eq_CMA);
         [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
     else
-        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 150, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-        [X_test, phEstX_test] = carrSynch(X_matched(1:2:end));
-        [X_eq, phEstX] = carrSynch(X_matched(1:2:end));
-        [Y_eq, phEstY] = carrSynch(Y_matched(1:2:end));
+        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 450, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+        %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
+        [X_eq, phEstX] = carrSynch(X_eq_CMA);
+
+        carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+        [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
+        [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
     end
     
     
@@ -187,6 +261,14 @@ for index = 1:length(OSNR_dB)
     Y_RX = Y_eq*exp(1i*i);
     transient_Ypol = abs(finddelay(Y_RX(1:65536*3), SIG.Ypol.txSymb));
     Y_RX = Y_RX(transient_Ypol+1:end);
+
+    if r==2
+        X_Power = mean(abs((X_RX)).^2);
+        X_RX = X_RX/sqrt(X_Power/power_norm);
+    
+        Y_Power = mean(abs((Y_RX)).^2);
+        Y_RX = Y_RX/sqrt(Y_Power/power_norm);
+    end
 
      if(index==length(OSNR_dB))
         fprintf('Transient Xpol: %d\n', transient_Xpol)
@@ -556,7 +638,7 @@ else
     BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
 
     BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
-    BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
+%     BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
 
     figure();
     semilogy(OSNR_dB, BER_TH, 'r');
@@ -564,9 +646,9 @@ else
     grid on;
     hold on;
     semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
-    semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
+%     semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
     title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-    legend('Theoretical BER', 'Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
+%     legend('Theoretical BER', 'Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
     
