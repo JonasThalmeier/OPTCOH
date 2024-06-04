@@ -32,7 +32,7 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 if r==1
     OSNR_dB = 8:11;
 else
-    OSNR_dB = 14:18;
+    OSNR_dB = 14;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
@@ -111,8 +111,8 @@ for index = 1:length(OSNR_dB)
         h_yx(ceil(N_tap/2)) = -exp(1i*pi/5)*sin(pi/6);
 
     else
-        h_xx(ceil(N_tap/2)) = cos(pi/4);
-        h_yy(ceil(N_tap/2)) = cos(pi/4);
+        h_xx(ceil(N_tap/2)) = exp(1i*pi/4)*cos(pi/4);
+        h_yy(ceil(N_tap/2)) = exp(-1i*pi/4)*cos(pi/4);
        
     
         h_xy(ceil(N_tap/2)) = exp(-1i*pi/4)*sin(pi/4);
@@ -230,13 +230,16 @@ for index = 1:length(OSNR_dB)
         [X_eq, phEstX] = carrSynch(X_eq_CMA);
         [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
     else
-        carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 450, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-        %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
-        [X_eq, phEstX] = carrSynch(X_eq_CMA);
+%         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 450, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+%         %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
+%         [X_eq, phEstX] = carrSynch(X_eq_CMA);
+% 
+%         carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+%         [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
+%         [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
 
-        carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-        [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
-        [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
+        [X_eq,~] = BPS_N(X_eq_CMA,100,M,power_norm); 
+        [Y_eq,~] = BPS_N(Y_eq_CMA,100,M,power_norm);
     end
     
     
@@ -256,10 +259,10 @@ for index = 1:length(OSNR_dB)
     % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
        
     X_RX = X_eq*exp(1i*i);
-    transient_Xpol = abs(finddelay(X_RX(1:65536*3), SIG.Xpol.txSymb));
+    transient_Xpol = abs(finddelay(X_RX, SIG.Xpol.txSymb));
     X_RX = X_RX(transient_Xpol+1:end);
     Y_RX = Y_eq*exp(1i*i);
-    transient_Ypol = abs(finddelay(Y_RX(1:65536*3), SIG.Ypol.txSymb));
+    transient_Ypol = abs(finddelay(Y_RX, SIG.Ypol.txSymb));
     Y_RX = Y_RX(transient_Ypol+1:end);
 
     if r==2
