@@ -24,15 +24,35 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 % Create delay and phase convolved signals
 [X_distorted, Y_distorted] = DP_Distortion_N(SIG.Xpol.txSig, SIG.Ypol.txSig);
 
+%----------------Jones Matrix------------------
+
+    theta = linspace(pi/4,pi/5,length(X_distorted));
+    phi = linspace(pi/3,pi/4,length(X_distorted));
+
+    Sig_distorted_Jones = zeros(2,length(X_distorted));
+    XY_Dist = [X_distorted'; Y_distorted'];
+    R = zeros(2,2,length(theta));
+
+    for l=1:length(theta)
+        R(:,:,l) = [cos(theta(l)) exp(-1i*phi(l))*sin(theta(l));-exp(1i*phi(l))*sin(theta(l)) cos(theta(l))];  
+        Sig_distorted_Jones(:,l) = R(:,:,l)*XY_Dist(:,l);
+    end
+
+    X_distorted_Jones = Sig_distorted_Jones(1,:)';
+    Y_distorted_Jones = Sig_distorted_Jones(2,:)';
+
+%     X_distorted_AWGN_Jones = X_distorted_AWGN * cos(theta) + Y_distorted_AWGN * exp(-1i*phi)*sin(theta);
+%     Y_distorted_AWGN_Jones = Y_distorted_AWGN * cos(theta) - X_distorted_AWGN * exp(1i*phi)*sin(theta);
+
 %add chromatic dispersion
-[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
+[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted_Jones, Y_distorted_Jones, SIG.Sps, 1);
 
-
+%%
 % Adding the noise
 if r==1
     OSNR_dB = 8:11;
 else
-    OSNR_dB = 14;
+    OSNR_dB = 14:18;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
@@ -44,26 +64,11 @@ for index = 1:length(OSNR_dB)
 
     [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
     [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB(index), SIG.symbolRate);
-
-    %----------------Jones Matrix------------------
-
-    theta = pi/4;
-    phi = pi/3;
-
-    R = [cos(theta) exp(-1i*phi)*sin(theta);-exp(1i*phi)*sin(theta) cos(theta)];
-
-    XY_AWGN = [X_distorted_AWGN'; Y_distorted_AWGN'];
-    Sig_distorted_AWGN_Jones = R*XY_AWGN;
-
-    X_distorted_AWGN_Jones = Sig_distorted_AWGN_Jones(1,:)';
-    Y_distorted_AWGN_Jones = Sig_distorted_AWGN_Jones(2,:)';
-
-%     X_distorted_AWGN_Jones = X_distorted_AWGN * cos(theta) + Y_distorted_AWGN * exp(-1i*phi)*sin(theta);
-%     Y_distorted_AWGN_Jones = Y_distorted_AWGN * cos(theta) - X_distorted_AWGN * exp(1i*phi)*sin(theta);
+    
 
     % ----------------Compensation for CD-------------------
     
-    [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN_Jones, Y_distorted_AWGN_Jones, SIG.Sps, 2);
+    [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
 
     X_CD_rec = X_CD_rec(65536*8+1:end);
     Y_CD_rec = Y_CD_rec(65536*8+1:end);
@@ -84,15 +89,15 @@ for index = 1:length(OSNR_dB)
     Y_Power = mean(abs((Y_CD_rec)).^2);
     Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power);
 
-    TX_sig = [X_CD_rec'; Y_CD_rec'];
+    TX_sig = [X_CD_rec_norm'; Y_CD_rec_norm'];
     
     %CMA parameters
     if r==1
         N_tap = 15;
         mu = 1e-4;
     else
-        N_tap = 25;
-        mu = 7e-3; %7e-3
+        N_tap = 13;
+        mu = 8e-3; %7e-3
     end
 
     
@@ -111,20 +116,20 @@ for index = 1:length(OSNR_dB)
         h_yx(ceil(N_tap/2)) = -exp(1i*pi/5)*sin(pi/6);
 
     else
-        h_xx(ceil(N_tap/2)) = exp(1i*pi/4)*cos(pi/4);
-        h_yy(ceil(N_tap/2)) = exp(-1i*pi/4)*cos(pi/4);
+        h_xx(ceil(N_tap/2)) = exp(1i*pi/6)*cos(pi/6);
+        h_yy(ceil(N_tap/2)) = exp(-1i*pi/6)*cos(pi/6);
        
     
-        h_xy(ceil(N_tap/2)) = exp(-1i*pi/4)*sin(pi/4);
-        h_yx(ceil(N_tap/2)) = -exp(1i*pi/4)*sin(pi/4);
+        h_xy(ceil(N_tap/2)) = exp(-1i*pi/6)*sin(pi/6);
+        h_yx(ceil(N_tap/2)) = -exp(1i*pi/6)*sin(pi/6);
     end
    
-       
-    e_X = zeros(1, size(TX_sig,1)/2);
-    e_Y = zeros(1, size(TX_sig,1)/2);
+    for rep = 1:3   
+    e_X = zeros(1, size(TX_sig,2)/2);
+    e_Y = zeros(1, size(TX_sig,2)/2);
     
-    X_out = zeros(1,size(TX_sig,1)/2);
-    Y_out = zeros(1,size(TX_sig,1)/2);
+    X_out = zeros(1,size(TX_sig,2)/2);
+    Y_out = zeros(1,size(TX_sig,2)/2);
     
     out_index = 0;
     RDE_flag = 0;
@@ -138,23 +143,28 @@ for index = 1:length(OSNR_dB)
     
         else
             out_index = out_index + 1;
-            X_out(out_index) = sum(conj(h_xx).*fliplr(TX_sig(1,i:i+N_tap-1)) + conj(h_xy).*fliplr(TX_sig(2,i:i+N_tap-1)));
-            Y_out(out_index) = sum(conj(h_yx).*fliplr(TX_sig(1,i:i+N_tap-1)) + conj(h_yy).*fliplr(TX_sig(2,i:i+N_tap-1)));
+            X_out(out_index) = sum(conj(h_xx).*fliplr(TX_sig(1,i:i+N_tap-1))) + sum(conj(h_xy).*fliplr(TX_sig(2,i:i+N_tap-1)));
+            Y_out(out_index) = sum(conj(h_yx).*fliplr(TX_sig(1,i:i+N_tap-1))) + sum(conj(h_yy).*fliplr(TX_sig(2,i:i+N_tap-1)));
           
             rX = abs(X_out(out_index))^2;
             rY = abs(Y_out(out_index))^2;
 
-            if out_index>170000 && RDE_flag==0
+            if out_index>280000 && RDE_flag==0 && rep==1
                 RDE_flag = 1;
                 if r==1
                     mu = 8e-5;
                 else
-                    mu = 2e-4;
-                    
+                    mu = 8e-4;                    
                 end
             end
 
-            if r==1 || (RDE_flag==0 && out_index<65000)
+            if rep==2
+                mu = 8e-5;
+            elseif rep==3
+                mu = 5e-5;
+            end
+
+            if r==1 || (RDE_flag==0 && out_index<5000 && rep==1)
                 if r==1
                      RX_2  = 1;
                      RY_2  = 1;
@@ -194,33 +204,36 @@ for index = 1:length(OSNR_dB)
 
             e_X(out_index)  = RX_2 - rX;
                 if isnan(e_X(out_index))
-                    fprintf('IS NAN\n')
+                    fprintf('X IS NAN\n')
                     pause;
                 end
             e_Y(out_index)  = RY_2 - rY;
+                if isnan(e_Y(out_index))
+                    fprintf('Y IS NAN\n')
+                    pause;
+                end
         
-            h_xx  = h_xx + mu * e_X(out_index) * fliplr(TX_sig(1,i:i+N_tap-1)).*conj(X_out(out_index));
-            h_xy  = h_xy + mu * e_X(out_index) * fliplr(TX_sig(2,i:i+N_tap-1)).*conj(X_out(out_index));
-            h_yx  = h_yx + mu * e_Y(out_index) * fliplr(TX_sig(1,i:i+N_tap-1)).*conj(Y_out(out_index));
-            h_yy  = h_yy + mu * e_Y(out_index) * fliplr(TX_sig(2,i:i+N_tap-1)).*conj(Y_out(out_index));
+            h_xx  = h_xx + mu * e_X(out_index) .* fliplr(TX_sig(1,i:i+N_tap-1)).*conj(X_out(out_index));
+            h_xy  = h_xy + mu * e_X(out_index) .* fliplr(TX_sig(2,i:i+N_tap-1)).*conj(X_out(out_index));
+            h_yx  = h_yx + mu * e_Y(out_index) .* fliplr(TX_sig(1,i:i+N_tap-1)).*conj(Y_out(out_index));
+            h_yy  = h_yy + mu * e_Y(out_index) .* fliplr(TX_sig(2,i:i+N_tap-1)).*conj(Y_out(out_index));
         end
     
+    end
     end
     
     X_out = X_out';
     Y_out = Y_out';
-    cut = 120000;
+    cut = 15;
 
 
     figure(), plot(e_X), title(sprintf('CMA error Xpol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
     figure(), plot(e_Y), title(sprintf('CMA error Ypol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
 
     
-    [m_x,I_x] = min(abs(X_out));
-    [m_y,I_y] = min(abs(Y_out));
     
-    X_eq_CMA = X_out(cut:end,:);
-    Y_eq_CMA = Y_out(cut:end,:);
+    X_eq_CMA = X_out(1:end-cut,:);
+    Y_eq_CMA = Y_out(1:end-cut,:);
 
 
  %------------------Delay&Phase recovery ---------------------
@@ -238,8 +251,8 @@ for index = 1:length(OSNR_dB)
 %         [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
 %         [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
 
-        [X_eq,~] = BPS_N(X_eq_CMA,100,M,power_norm); 
-        [Y_eq,~] = BPS_N(Y_eq_CMA,100,M,power_norm);
+        [X_eq,~] = BPS_N(X_eq_CMA, 30, M, power_norm); 
+        [Y_eq,~] = BPS_N(Y_eq_CMA, 30, M, power_norm);
     end
     
     
@@ -259,10 +272,10 @@ for index = 1:length(OSNR_dB)
     % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
        
     X_RX = X_eq*exp(1i*i);
-    transient_Xpol = abs(finddelay(X_RX, SIG.Xpol.txSymb));
+    transient_Xpol = abs(finddelay(X_RX(1:65536*2), SIG.Xpol.txSymb));
     X_RX = X_RX(transient_Xpol+1:end);
     Y_RX = Y_eq*exp(1i*i);
-    transient_Ypol = abs(finddelay(Y_RX, SIG.Ypol.txSymb));
+    transient_Ypol = abs(finddelay(Y_RX(1:65536*2), SIG.Ypol.txSymb));
     Y_RX = Y_RX(transient_Ypol+1:end);
 
     if r==2

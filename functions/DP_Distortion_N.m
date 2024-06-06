@@ -11,7 +11,7 @@ phase_init = (phase_init-1) *pi / 180; %radians
 %-------------Wiener Process/Random Walk-----------------------------------
 delta_nu = 50e3;  % Laser linewidth. 50kHz seems to be realisitic
 var = 2*pi*delta_nu;
-samp_rate = 58*64e9; % deltaW of a Wiener process have a variance equal to the stime between steps
+samp_rate = 5e2*64e9; % deltaW of a Wiener process have a variance equal to the stime between steps
 n = 1000;
 lenX = length(TX_Xpol)+delay;
 lenY = length(TX_Ypol)+delay;
