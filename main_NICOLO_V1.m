@@ -26,20 +26,52 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 
 %----------------Jones Matrix------------------
 
-    theta = linspace(pi/4,pi/5,length(X_distorted));
-    phi = linspace(pi/3,pi/4,length(X_distorted));
+%dynamic
 
-    Sig_distorted_Jones = zeros(2,length(X_distorted));
-    XY_Dist = [X_distorted'; Y_distorted'];
-    R = zeros(2,2,length(theta));
+amplitude = 1;
+period = 4.5; %with 4.5 is a rotation from 0 to 90°(almost), and it is not recovered
+t = linspace(0, 1, length(X_distorted));
+phi = pi/3;
 
-    for l=1:length(theta)
-        R(:,:,l) = [cos(theta(l)) exp(-1i*phi(l))*sin(theta(l));-exp(1i*phi(l))*sin(theta(l)) cos(theta(l))];  
-        Sig_distorted_Jones(:,l) = R(:,:,l)*XY_Dist(:,l);
-    end
+pol_xx = amplitude * cos(2 * pi * t / period);
+pol_xy = exp(-1i*phi)*amplitude * sin(2 * pi * t / period);
+pol_yx = -exp(1i*phi)*amplitude * sin(2 * pi * t / period);
+pol_yy = amplitude * cos(2 * pi * t / period);
 
-    X_distorted_Jones = Sig_distorted_Jones(1,:)';
-    Y_distorted_Jones = Sig_distorted_Jones(2,:)';
+
+X_distorted_Jones = pol_xx'.*X_distorted + pol_xy'.*Y_distorted;
+Y_distorted_Jones = pol_yx'.*X_distorted + pol_yy'.*Y_distorted;
+
+
+plot(t, pol_xx, 'b-', 'LineWidth', 2);
+xlabel('samples');
+ylabel('cos(n)');
+grid on;
+
+%     theta = linspace(pi/4,pi/5,length(X_distorted));
+%     phi = linspace(pi/3,pi/4,length(X_distorted));
+% 
+%     Sig_distorted_Jones = zeros(2,length(X_distorted));
+%     XY_Dist = [X_distorted'; Y_distorted'];
+%     R = zeros(2,2,length(theta));
+% 
+%     for l=1:length(theta)
+%         R(:,:,l) = [cos(theta(l)) exp(-1i*phi(l))*sin(theta(l));-exp(1i*phi(l))*sin(theta(l)) cos(theta(l))];  
+%         Sig_distorted_Jones(:,l) = R(:,:,l)*XY_Dist(:,l);
+%     end
+
+%static
+% theta = pi/4;
+% phi = pi/3;
+% 
+% XY_Dist = [X_distorted'; Y_distorted'];
+% 
+% R = [cos(theta) exp(-1i*phi)*sin(theta);-exp(1i*phi)*sin(theta) cos(theta)];  
+% Sig_distorted_Jones = R*XY_Dist;
+% 
+% 
+% X_distorted_Jones = Sig_distorted_Jones(1,:)';
+% Y_distorted_Jones = Sig_distorted_Jones(2,:)';
 
 %     X_distorted_AWGN_Jones = X_distorted_AWGN * cos(theta) + Y_distorted_AWGN * exp(-1i*phi)*sin(theta);
 %     Y_distorted_AWGN_Jones = Y_distorted_AWGN * cos(theta) - X_distorted_AWGN * exp(1i*phi)*sin(theta);
@@ -52,7 +84,7 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 if r==1
     OSNR_dB = 8:11;
 else
-    OSNR_dB = 14:18;
+    OSNR_dB = 12:2:18;
 end
 
 X_Ber_Tot = zeros(1,length(OSNR_dB));
@@ -96,7 +128,7 @@ for index = 1:length(OSNR_dB)
         N_tap = 15;
         mu = 1e-4;
     else
-        N_tap = 13;
+        N_tap = 9; %13
         mu = 8e-3; %7e-3
     end
 
@@ -117,7 +149,10 @@ for index = 1:length(OSNR_dB)
 
     else
         h_xx(ceil(N_tap/2)) = exp(1i*pi/6)*cos(pi/6);
-        h_yy(ceil(N_tap/2)) = exp(-1i*pi/6)*cos(pi/6);
+        h_yy(ceil(N_tap/2)) = exp(1i*pi/6)*cos(pi/6);
+
+%         h_xx(ceil(N_tap/2)) = cos(pi/6);
+%         h_yy(ceil(N_tap/2)) = cos(pi/6);
        
     
         h_xy(ceil(N_tap/2)) = exp(-1i*pi/6)*sin(pi/6);
@@ -149,7 +184,7 @@ for index = 1:length(OSNR_dB)
             rX = abs(X_out(out_index))^2;
             rY = abs(Y_out(out_index))^2;
 
-            if out_index>280000 && RDE_flag==0 && rep==1
+            if out_index>300000 && RDE_flag==0 && rep==1
                 RDE_flag = 1;
                 if r==1
                     mu = 8e-5;
@@ -272,10 +307,10 @@ for index = 1:length(OSNR_dB)
     % fprintf('The total phase recovered is (degrees): %d\n', (mean(phEstX+i) *180 /pi));
        
     X_RX = X_eq*exp(1i*i);
-    transient_Xpol = abs(finddelay(X_RX(1:65536*2), SIG.Xpol.txSymb));
+    [~,transient_Xpol] = max(abs(xcorr(X_RX(1:65536*2), SIG.Xpol.txSymb)));
     X_RX = X_RX(transient_Xpol+1:end);
     Y_RX = Y_eq*exp(1i*i);
-    transient_Ypol = abs(finddelay(Y_RX(1:65536*2), SIG.Ypol.txSymb));
+    [~,transient_Ypol] = max(abs(xcorr(Y_RX(1:65536*2), SIG.Ypol.txSymb)));
     Y_RX = Y_RX(transient_Ypol+1:end);
 
     if r==2
@@ -679,7 +714,7 @@ else
     title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
     legend('Theoretical BER', 'Simulated BER - Matched filter', sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
     xlabel('OSNR [dB]', 'Interpreter','latex');
-    hold off;
+    hold off;   
 
     figure();
     semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
