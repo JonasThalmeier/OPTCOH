@@ -17,21 +17,18 @@ phase_init = (phase_init-1) *pi / 180; %radians
 var = 2*pi*delta_nu;
 var = var;
 samp_rate = 8*64e9; % deltaW of a Wiener process have a variance equal to the stime between steps
-n = 1000;
+% n = 1000;
 lenX = length(TX_Xpol)+delay;
-lenY = length(TX_Ypol)+delay;
+% lenY = length(TX_Ypol)+delay;
 
 % Generating the random steps
-stepsX = sqrt(var/samp_rate)*randn(1,lenX);
-phaseX = cumsum(stepsX)+phase_init;
-stepsY = sqrt(var/samp_rate)*randn(1,lenY);
-phaseY = cumsum(stepsY)+phase_init;
+steps = sqrt(var/samp_rate)*randn(1,lenX);
+phase = cumsum(steps)+phase_init;
 
 
 % Rotate constellation
-delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phaseX)'; %add zeros at beginning to simulate delay
-delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phaseY)';
-
+delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phase)'; %add zeros at beginning to simulate delay
+delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phase)';
 % ------------------Jones Matrix (Pol.rotation)-----------------------------
 % How to handle lenX~=lenY????
 
@@ -41,13 +38,14 @@ kappa = 0;
 Theta = randi([0,0]) *pi / 180;
 stepsPol = sqrt(rad_sec/samp_rate)*randn(1,lenX);
 phasePol = cumsum(stepsPol)+Theta;
+figure(), plot(abs(acosd(phasePol))), title('Random walk polarization'), xlabel('Samples [n]'), ylabel('$\theta[n]$', 'Interpreter','latex')
 TX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']';
 TX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']';
 J = zeros(2, 2, lenX);
 R = zeros(2, 2, lenX);
 JR = zeros(2, 2, lenX);
 for idx=1:lenX
-    J(:,:,idx) = [exp(1i * phaseX(idx))', kappa;kappa,exp(1i * phaseY(idx))];
+    J(:,:,idx) = [exp(1i * phase(idx))', kappa;kappa,exp(1i * phase(idx))];
     R(:,:,idx) = [cos(phasePol(idx)),-sin(phasePol(idx));sin(phasePol(idx)),cos(phasePol(idx))];
     JR(:,:,idx) = R(:,:,idx) * J(:,:,idx);
     dist = [TX_Xpol(idx),TX_Ypol(idx)]*JR(:,:,idx);

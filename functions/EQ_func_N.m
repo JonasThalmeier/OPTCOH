@@ -1,7 +1,6 @@
-function [outputArg1,outputArg2] = EQ_func_N(TX_sig,r,mu,mu2,N_tap,N1,N2,N3)
-% N1 unused
-% N2 when to change from CMA to RDE
-% N3 when to go from mu to mu2
+function [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig,r,mu,mu2,N_tap,N1,N2)
+% N1 when to change from CMA to RDE
+% N2 when to go from mu to mu2
 
 %Taps initialization
 h_xx = zeros(1,N_tap);
@@ -30,7 +29,6 @@ for rep = 1:3
 
     out_index = 0;
     RDE_flag = 0;
-    R_2 = [1/sqrt(5) 1 3/sqrt(5)];
 
     for i = 1:2:size(TX_sig,2)
 
@@ -40,19 +38,22 @@ for rep = 1:3
             out_index = out_index + 1;
             X_out(out_index) = sum(conj(h_xx).*fliplr(TX_sig(1,i:i+N_tap-1))) + sum(conj(h_xy).*fliplr(TX_sig(2,i:i+N_tap-1)));
             Y_out(out_index) = sum(conj(h_yx).*fliplr(TX_sig(1,i:i+N_tap-1))) + sum(conj(h_yy).*fliplr(TX_sig(2,i:i+N_tap-1)));
+
             rX = abs(X_out(out_index))^2;
             rY = abs(Y_out(out_index))^2;
-            if out_index==N3 && RDE_flag==0 && rep==1
+            
+            if out_index==N2 && RDE_flag==0 && rep==1
                 RDE_flag = 1;
                 mu = mu2;
             end
+
             if rep==2 && i==1
-                mu = mu/2;
+                mu = 8e-5;
             elseif rep==3 && i==1
-                mu = mu/2;
+                mu = 5e-5;
             end
 
-            if r==1 || (RDE_flag==0 && out_index<N2 && rep==1)
+            if r==1 || (RDE_flag==0 && out_index<N1 && rep==1)
                 if r==1
                     RX_2  = 1;
                     RY_2  = 1;
