@@ -53,21 +53,27 @@ w1V(floor(NTaps/2) + 1) = 1;
 % w2H(floor(NTaps/2) + 1) = 1;
 % w1H(floor(NTaps/2) + 1) = 1;
 
+error = zeros(1,OutLength);
 
 for i = 1:OutLength
-    % Calculate the outputs
+    % % Calculate the outputs
     y1(i) = w1V'*xV(:,i) + w1H'*xH(:,i);
     y2(i) = w2V'*xV(:,i) + w2H'*xH(:,i);
     % y1(i) = w1V' * xV(:, i);
     % y2(i) = w2H' * xH(:, i);
+
+
     if i == N1
         w2H = conj(w1V(end:-1:1,1)) ; w2V = -conj(w1H(end:-1:1,1));
+        % w2H = conj(w1V) ; w2V = -conj(w1H);
+        % w2H = conj(gram_schmidt(w1V,NTaps));
+        % w2V = -conj(gram_schmidt(w1H,NTaps));
     end
     % Update filter coefficients
     if alg == "RDE" && i>N2
-        [w1V, w1H, w2V, w2H] = RDE(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, R_RDE, mu);
+        [w1V, w1H, w2V, w2H, error(i)] = RDE(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, R_RDE, mu);
     elseif alg == "CMA" || alg == "RDE"
-        [w1V, w1H, w2V, w2H] = CMA(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, R_CMA, mu);
+        [w1V, w1H, w2V, w2H, error(i)] = CMA(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, R_CMA, mu);
     elseif alg == "LMS"
         [w1V, w1H, w2V, w2H] = LMS(xV(:, i), xH(:, i), y1(i), y2(i), w1V, w1H, w2V, w2H, mu, Xorg(i), Yorg(i));
         if i >= train_len
@@ -75,27 +81,42 @@ for i = 1:OutLength
         end
     end
 end
-% 
+%
 % temp=w1Vmat./max(w1Vmat,[],1);
 % mesh(abs(w1Vmat(:,1:100:train_len)));
 
 % Output samples
 out = [y1 y2];
 out = out(1 + NOut:end, :);
+% figure,plot(error);
 end
 
-function [w1V, w1H, w2V, w2H] = CMA(xV, xH, y1, y2, w1V, w1H, w2V, w2H, R, Mu)
+function orthogonal_vector = gram_schmidt(reference_vector, NTaps)
+orthogonal_vector = zeros(size(reference_vector));
+orthogonal_vector(floor(NTaps/2) + 1) = 1;  % Initialize with a unit vector
+
+% Subtract the projection of the reference vector
+projection = (dot(reference_vector, orthogonal_vector) / norm(reference_vector)^2) * reference_vector;
+orthogonal_vector = orthogonal_vector - projection;
+
+% Normalize the orthogonal vector
+orthogonal_vector = orthogonal_vector / norm(orthogonal_vector);
+end
+
+function [w1V, w1H, w2V, w2H, error] = CMA(xV, xH, y1, y2, w1V, w1H, w2V, w2H, R, Mu)
 % CMA algorithm for filter coefficient update
+error = R - abs(y1).^2;
 w1V = w1V + Mu * xV * (R - abs(y1).^2) * conj(y1);
 w1H = w1H + Mu * xH * (R - abs(y1).^2) * conj(y1);
 w2V = w2V + Mu * xV * (R - abs(y2).^2) * conj(y2);
 w2H = w2H + Mu * xH * (R - abs(y2).^2) * conj(y2);
 end
 
-function [w1V, w1H, w2V, w2H] = RDE(xV, xH, y1, y2, w1V, w1H, w2V, w2H, R, Mu)
+function [w1V, w1H, w2V, w2H,error] = RDE(xV, xH, y1, y2, w1V, w1H, w2V, w2H, R, Mu)
 % Radius for output y1 and output y2:
 [~,r1] = min(abs(R-abs(y1))) ; [~,r2] = min(abs(R-abs(y2)));
 %Updating the filters:
+error = R(r1)^2-abs(y1).^2;
 w1V = w1V + Mu*xV*(R(r1)^2-abs(y1).^2)*conj(y1);
 w1H = w1H + Mu*xH*(R(r1)^2-abs(y1).^2)*conj(y1);
 w2V = w2V + Mu*xV*(R(r2)^2-abs(y2).^2)*conj(y2);
