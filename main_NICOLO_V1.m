@@ -165,16 +165,16 @@ for index_rad_pol = 1:length(rad_pol)
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
         else
-            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100, 'NormalizedLoopBandwidth',1e-3);
-            %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
-            [X_eq, phEstX] = carrSynch(X_eq_CMA);
+%             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100, 'NormalizedLoopBandwidth',1e-3);
+%             %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
+%             [X_eq, phEstX] = carrSynch(X_eq_CMA);
+%     
+% %             carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+%             %[Y_test, phEstY_test] = carrSynch2(Y_eq_CMA);
+%             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
     
-%             carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-            %[Y_test, phEstY_test] = carrSynch2(Y_eq_CMA);
-            [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
-    
-%             [X_eq,~] = BPS_N(X_eq_CMA, 50, M, power_norm); 
-%             [Y_eq,~] = BPS_N(Y_eq_CMA, 50, M, power_norm);
+            [X_eq,~] = BPS_N(X_eq_CMA, 50, M, power_norm); 
+            [Y_eq,~] = BPS_N(Y_eq_CMA, 50, M, power_norm);
         end
         
         
