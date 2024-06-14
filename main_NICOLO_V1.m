@@ -22,12 +22,12 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 
 rad_pol = [1e1 1e2 1e3 1e4 1e5 1e6];
 Delta_Pol = zeros(1,length(rad_pol));
-
+%%
 for index_rad_pol = 1:length(rad_pol)
 
     %% IMPAIRMENTS PART
     % Create delay and phase convolved signals
-    [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, 5e2, rad_pol(index_rad_pol));
+    [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, 50e3, rad_pol(index_rad_pol));
     
     %----------------Jones Matrix------------------
     
@@ -126,7 +126,7 @@ for index_rad_pol = 1:length(rad_pol)
         Y_Power = mean(abs((Y_CD_rec)).^2);
         Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power);
     
-        TX_sig = [X_CD_rec_norm'; Y_CD_rec_norm'];
+        TX_sig = [X_CD_rec_norm, Y_CD_rec_norm];
         
         %CMA parameters
         if r==1
@@ -136,18 +136,17 @@ for index_rad_pol = 1:length(rad_pol)
             N1 = 5000;
             N2 = 300000;
         else
-            N_tap = 11; %13
+            N_tap = 13; %13
             mu = 8e-3; %7e-3
             mu2 = 8e-4;
-            N1 = 5000;
-            N2 = 300000;
+            N1 = 1000; %5000
+            N2 = 100000; %300000
         end
     
-        [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig,r,mu,mu2,N_tap,N1,N2);
+        [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig, r, mu, mu2, N_tap, N1, N2);
         
-        X_out = X_out';
-        Y_out = Y_out';
-        cut = 15;
+        
+        cut = floor(N_tap/2);
     
     
         figure(), plot(e_X), title(sprintf('CMA error Xpol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
@@ -155,8 +154,8 @@ for index_rad_pol = 1:length(rad_pol)
     
         
         
-        X_eq_CMA = X_out(1:end-cut,:);
-        Y_eq_CMA = Y_out(1:end-cut,:);
+        X_eq_CMA = X_out;
+        Y_eq_CMA = Y_out;
     
     
      %------------------Delay&Phase recovery ---------------------
@@ -166,16 +165,16 @@ for index_rad_pol = 1:length(rad_pol)
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
         else
-    %         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 450, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-    %         %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
-    %         [X_eq, phEstX] = carrSynch(X_eq_CMA);
+            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 450, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+            [X_test, phEstX_test] = carrSynch(X_eq_CMA);
+            [X_eq, phEstX] = carrSynch(X_eq_CMA);
     
-    %         carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-    %         [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
-    %         [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
+            carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+            [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
+            [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
     
-            [X_eq,~] = BPS_N(X_eq_CMA, 50, M, power_norm); 
-            [Y_eq,~] = BPS_N(Y_eq_CMA, 50, M, power_norm);
+%             [X_eq,~] = BPS_N(X_eq_CMA, 50, M, power_norm); 
+%             [Y_eq,~] = BPS_N(Y_eq_CMA, 50, M, power_norm);
         end
         
         
