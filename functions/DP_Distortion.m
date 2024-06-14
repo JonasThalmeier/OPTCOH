@@ -27,29 +27,43 @@ phase = cumsum(steps)+phase_init;
 
 
 % Rotate constellation
-delay_phase_distorted_RX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phase)'; %add zeros at beginning to simulate delay
-delay_phase_distorted_RX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phase)';
+delay_phase_distorted_RX_Xpol_1 = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']' .* exp(1i * phase)'; %add zeros at beginning to simulate delay
+delay_phase_distorted_RX_Ypol_1 = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']' .* exp(1i * phase)';
 % ------------------Jones Matrix (Pol.rotation)-----------------------------
 % How to handle lenX~=lenY????
 
 
-kappa = 0;
+% kappa = 0;
 % rad_sec = 1e6;
 Theta = randi([0,0]) *pi / 180;
 stepsPol = sqrt(rad_sec/samp_rate)*randn(1,lenX);
 phasePol = cumsum(stepsPol)+Theta;
+
 figure(), plot(abs(acosd(phasePol))), title('Random walk polarization'), xlabel('Samples [n]'), ylabel('$\theta[n]$', 'Interpreter','latex')
-TX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']';
-TX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']';
-J = zeros(2, 2, lenX);
-R = zeros(2, 2, lenX);
-JR = zeros(2, 2, lenX);
-for idx=1:lenX
-    J(:,:,idx) = [exp(1i * phase(idx))', kappa;kappa,exp(1i * phase(idx))];
-    R(:,:,idx) = [cos(phasePol(idx)),-sin(phasePol(idx));sin(phasePol(idx)),cos(phasePol(idx))];
-    JR(:,:,idx) = R(:,:,idx) * J(:,:,idx);
-    dist = [TX_Xpol(idx),TX_Ypol(idx)]*JR(:,:,idx);
-    delay_phase_distorted_RX_Xpol(idx) = dist(1);
-    delay_phase_distorted_RX_Ypol(idx) = dist(2);
-end
-end
+
+amplitude = 1;
+phi = pi/3;
+
+pol_xx = amplitude * cos(phasePol);
+pol_xy = exp(-1i*phi)*amplitude * sin(phasePol);
+pol_yx = -exp(1i*phi)*amplitude * sin(phasePol);
+pol_yy = amplitude * cos(phasePol);
+
+
+delay_phase_distorted_RX_Xpol = pol_xx'.*delay_phase_distorted_RX_Xpol_1 + pol_xy'.*delay_phase_distorted_RX_Ypol_1;
+delay_phase_distorted_RX_Ypol = pol_yx'.*delay_phase_distorted_RX_Xpol_1 + pol_yy'.*delay_phase_distorted_RX_Ypol_1;
+
+% TX_Xpol = [zeros(delay, 1, 'like', TX_Xpol)', TX_Xpol']';
+% TX_Ypol = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']';
+% J = zeros(2, 2, lenX);
+% R = zeros(2, 2, lenX);
+% JR = zeros(2, 2, lenX);
+% for idx=1:lenX
+%     J(:,:,idx) = [exp(1i * phase(idx))', kappa;kappa,exp(1i * phase(idx))];
+%     R(:,:,idx) = [cos(phasePol(idx)),-sin(phasePol(idx));sin(phasePol(idx)),cos(phasePol(idx))];
+%     JR(:,:,idx) = R(:,:,idx) * J(:,:,idx);
+%     dist = [TX_Xpol(idx),TX_Ypol(idx)]*JR(:,:,idx);
+%     delay_phase_distorted_RX_Xpol(idx) = dist(1);
+%     delay_phase_distorted_RX_Ypol(idx) = dist(2);
+% end
+% end

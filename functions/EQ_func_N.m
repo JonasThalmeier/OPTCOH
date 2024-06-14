@@ -14,10 +14,10 @@ if r==1
     h_xy(1,1) = exp(-1i*pi/5)*sin(pi/6);
     h_yx(1,1) = -exp(1i*pi/5)*sin(pi/6);
 else
-    h_xx(ceil(N_tap/2),1) = cos(pi/6);
-    h_yy(ceil(N_tap/2),1) = cos(pi/6);
-    h_xy(ceil(N_tap/2),1) = exp(-1i*pi/6)*sin(pi/6);
-    h_yx(ceil(N_tap/2),1) = -exp(1i*pi/6)*sin(pi/6);
+    h_xx(ceil(N_tap/2),1) = 1;
+    h_yy(ceil(N_tap/2),1) = 1;
+    h_xy(ceil(N_tap/2),1) = 0;
+    h_yx(ceil(N_tap/2),1) = 0;
 end
 
 for rep = 1:3

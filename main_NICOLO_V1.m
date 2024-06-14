@@ -136,11 +136,11 @@ for index_rad_pol = 1:length(rad_pol)
             N1 = 5000;
             N2 = 300000;
         else
-            N_tap = 13; %13
-            mu = 8e-3; %7e-3
+            N_tap = 9; %13
+            mu = 1e-3; %7e-3
             mu2 = 8e-4;
-            N1 = 1000; %5000
-            N2 = 100000; %300000
+            N1 = 1e3; %5000
+            N2 = 3e5; %300000
         end
     
         [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig, r, mu, mu2, N_tap, N1, N2);
@@ -165,13 +165,13 @@ for index_rad_pol = 1:length(rad_pol)
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
         else
-            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 450, 'NormalizedLoopBandwidth',.0005);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-            [X_test, phEstX_test] = carrSynch(X_eq_CMA);
+            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100, 'NormalizedLoopBandwidth',1e-3);
+            %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
     
-            carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-            [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
-            [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
+%             carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+            %[Y_test, phEstY_test] = carrSynch2(Y_eq_CMA);
+            [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
     
 %             [X_eq,~] = BPS_N(X_eq_CMA, 50, M, power_norm); 
 %             [Y_eq,~] = BPS_N(Y_eq_CMA, 50, M, power_norm);
@@ -196,6 +196,7 @@ for index_rad_pol = 1:length(rad_pol)
         X_RX = X_eq*exp(1i*i);
         [~,transient_Xpol] = max(abs(xcorr(X_RX(1:65536*2), SIG.Xpol.txSymb)));
         X_RX = X_RX(transient_Xpol+1:end);
+        
         Y_RX = Y_eq*exp(1i*i);
         [~,transient_Ypol] = max(abs(xcorr(Y_RX(1:65536*2), SIG.Ypol.txSymb)));
         Y_RX = Y_RX(transient_Ypol+1:end);
@@ -249,7 +250,7 @@ for index_rad_pol = 1:length(rad_pol)
     Delta_Pol(index_rad_pol) = OSNR_dB - OSNR_th;
 end
 
-figure(), semilogx(Delta_Pol);
+figure(), plot(Delta_Pol), title('OSNR penalty vs polarization'), xlabel('log(rad/sec)');
 
 fprintf('\n');
 % %%
