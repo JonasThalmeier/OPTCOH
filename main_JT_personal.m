@@ -12,12 +12,11 @@ load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
 % Parameters
 SpS_down = 4;
 SpS_up = SIG.Sps/SpS_down;
-OSNR_dB = 10:4:18;
+OSNR_dB = 6:4:18;
 seq_lenght = length(SIG.Xpol.txSymb);
 B = 30;
 N = 50;
-sweep_par = logspace(3,6,10);
-
+sweep_par = 1:3;
 
 
 if r == 1
@@ -87,11 +86,21 @@ for idx_sweep = 1:length(sweep_par)
             Y_eq = XY_vit(:,2);
         else
             mu = 1e-3;
+            mu2 = 5e-5;
             % mu = 5e-3;
             NTaps = 9;
             N1 = 5e4;
             N2 = 5e3;
-            XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,NTaps,"RDE",N1,N2);
+            if sweep_par(idx_sweep) == 1
+                XY_eq = EQ_func(X_CD_rec,Y_CD_rec,mu,NTaps,"RDE",N1,N2);
+            elseif sweep_par(idx_sweep) == 2
+                mu2 = 5e-4;
+                [X_eq, Y_eq, e_X, e_Y] = EQ_func_N([X_CD_rec,Y_CD_rec],r,mu,mu2,NTaps,N1,N2);
+                XY_eq = [X_eq, Y_eq];
+            else
+                [X_eq, Y_eq, e_X, e_Y] = EQ_func_J([X_CD_rec,Y_CD_rec],r,mu,mu2,NTaps,N1,N2);
+                XY_eq = [X_eq, Y_eq];
+            end
             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100, 'NormalizedLoopBandwidth',1e-3);
             [X_eq, phEstX] = carrSynch(XY_eq(:,1));
             [Y_eq, phEstY] = carrSynch(XY_eq(:,2));
@@ -160,8 +169,8 @@ for idx_sweep = 1:length(sweep_par)
             k=k+1;
         end
         BERmat(idx_sweep,idx_OSNR) = .5*(min(X_BER,[],'all')+min(Y_BER,[],'all'));
-        % X_Ber_Tot(index) = min(X_BER,[],'all');
-        % Y_Ber_Tot(index) = min(Y_BER,[],'all');
+        X_Ber_Tot(idx_OSNR) = min(X_BER,[],'all');
+        Y_Ber_Tot(idx_OSNR) = min(Y_BER,[],'all');
     end
 end
 save('matrixBER.mat', 'BERmat');
@@ -200,38 +209,38 @@ if r == 1
     fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
     fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
 else
-    % BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
-    % BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
-    % figure();
-    % semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
-    % % xlim([1,14]);
-    % grid on;
-    % hold on;
-    % semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
-    % semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'LineStyle','-.', 'LineWidth', 1);
-    % semilogy(OSNR_dB, Y_Ber_Tot, 'Marker','o', 'LineStyle','-.', 'LineWidth', 1);
-    % title(sprintf('%s BER curve (B=%i, N=%i)',MODULATIONS(r),Bvec,Nvec));
-    % legend('Theoretical BER','Simulated BER - CMA', 'X Pol', 'Y Pol', 'Interpreter', 'latex');
-    % xlabel('OSNR [dB]', 'Interpreter','latex');
-    % hold off;
-    % fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
-    % fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
-
-
+    BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
+    BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
     figure();
-    hold on
-    for idx_OSNR = 1:length(OSNR_dB)
-            SNR = 10*log10(10*erfinv(-8/3.*squeeze(BERmat(:,idx_OSNR))+1).^2);
-            plot(log10(sweep_par), OSNR_dB(idx_OSNR)-SNR, 'LineWidth', 1, 'DisplayName', sprintf('OSNR = %d dB', OSNR_dB(idx_OSNR)));
-    end
+    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
     % xlim([1,14]);
     grid on;
-    title(sprintf('%s SNR penalty',MODULATIONS(r)));
-    legend show;
-    xlabel('$log_{10}\Delta\nu$', 'Interpreter','latex');
-    ylabel('$\Delta$OSNR [dB]', 'Interpreter','latex');
+    hold on;
+    semilogy(OSNR_dB, BERmat(1,:), 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+    semilogy(OSNR_dB, BERmat(2,:), 'Marker','o', 'LineStyle','-.', 'LineWidth', 1);
+    semilogy(OSNR_dB, BERmat(3,:), 'Marker','o', 'LineStyle','-.', 'LineWidth', 1);
+    % title(sprintf('%s BER curve (B=%i, N=%i)',MODULATIONS(r),Bvec,Nvec));
+    legend('Theoretical BER','Simulated BER - CMA Book', 'Simulated BER - CMA Nicolo', 'Simulated BER - CMA Jonas', 'Interpreter', 'latex');
+    xlabel('OSNR [dB]', 'Interpreter','latex');
     hold off;
     fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
     fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
+
+
+    % figure();
+    % hold on
+    % for idx_OSNR = 1:length(OSNR_dB)
+    %         SNR = 10*log10(10*erfinv(-8/3.*squeeze(BERmat(:,idx_OSNR))+1).^2);
+    %         plot(log10(sweep_par), OSNR_dB(idx_OSNR)-SNR, 'LineWidth', 1, 'DisplayName', sprintf('OSNR = %d dB', OSNR_dB(idx_OSNR)));
+    % end
+    % % xlim([1,14]);
+    % grid on;
+    % title(sprintf('%s SNR penalty',MODULATIONS(r)));
+    % legend show;
+    % xlabel('$log_{10}\Delta\nu$', 'Interpreter','latex');
+    % ylabel('$\Delta$OSNR [dB]', 'Interpreter','latex');
+    % hold off;
+    % fprintf('The BER on Xpol is: %.6f\n', X_Ber_Tot);
+    % fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot);
 end
 runtime_out = toc(runtime)
