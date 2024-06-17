@@ -5,6 +5,8 @@ function [X_rec, theta] = BPS_N(X_in, B, M, power_norm)
     X_rec = zeros(size(X_in));
     D = zeros(B,L_x);
     N = 10;
+    a = zeros(1,L_x);
+    phi_k = zeros(1,2);
 
     % Normalize input signal power
     X_Power = mean(abs(X_in).^2);
@@ -43,10 +45,20 @@ function [X_rec, theta] = BPS_N(X_in, B, M, power_norm)
 
         % Find minimum MSE and corresponding phase
         [~, min_index] = min(mse);
-        phi_k = phi(min_index);
+        phi_k(2) = phi(min_index);
         
+
+%         if k-1>0
+%             a(k) = a(k-1) + floor(1/2 + 1/(2*pi)*(phi_k(2) - phi_k(1))); %everything is moved by one to have 0 at a(1)
+%         else
+%             a(k) = floor(1/2 + 1/(2*pi)*(phi_k(2)));
+%         end
+% 
+%         phi_k(1) = phi_k(2);
+% 
+%         theta(k) = phi_k(2) + a(k);
         % Correct the phase
-        theta(k) = phi_k; % Optionally add unwrapping logic here
+        theta(k) = phi_k(2); % Optionally add unwrapping logic here
         
         % Recover the symbol with corrected phase
         X_rec(k) = X_in(k) * exp(-1i * theta(k));
