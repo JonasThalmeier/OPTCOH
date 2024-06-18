@@ -15,7 +15,7 @@ SpS_up = SIG.Sps/SpS_down;
 seq_lenght = length(SIG.Xpol.txSymb);
 B = 30;
 N = 50;
-sweep_par = linspace(50e3,1e6,20);
+sweep_par = linspace(0,1e5,4);
 BER_goal = 1e-3;
 
 
@@ -30,19 +30,19 @@ else
 end
 
 
-SNR = SNR_opt-.5;
-BER = ones(length(sweep_par),4);
+SNR = SNR_opt;
+BER = ones(length(sweep_par),2);
 delta_SNR = zeros(length(sweep_par),1);
 for idx_sweep = 1:length(sweep_par)
-    SNR = SNR_opt-.5;
-    while BER(idx_sweep,3)>BER_goal
+    SNR = SNR_opt;
+    while BER(idx_sweep,2)>BER_goal
         TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
         TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
 
         % Create delay and phase convolved signals
         % [X_distorted, Y_distorted] = DP_Distortion_N(SIG.Xpol.txSig, SIG.Ypol.txSig);
         % halfleng = round(1*length(SIG.Xpol.txSig));
-        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, sweep_par(idx_sweep), 1e3);
+        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, 50e3, sweep_par(idx_sweep));
 
         % seq_lenght = length(SIG.Xpol.txSig(1:halfleng));
 
@@ -165,9 +165,9 @@ for idx_sweep = 1:length(sweep_par)
         BER(idx_sweep,:) = [BER(idx_sweep,2:end), .5*(X_Ber+Y_Ber)];
         SNR = SNR+.5;
     end
-    SNR_coarse = SNR-2:.5:SNR-.5;
-    SNR_fine = linspace(SNR-2,SNR-.5,2e4);
-    delta_BER = spline(SNR_coarse,BER(idx_sweep,:),SNR_fine)-BER_goal;
+    SNR_coarse = [SNR-1, SNR-.5];
+    SNR_fine = linspace(SNR-1,SNR-.5,1e4);
+    delta_BER = interp1(SNR_coarse,BER(idx_sweep,:),SNR_fine)-BER_goal;
     [~,min_idx] = min(abs(delta_BER));
     delta_SNR(idx_sweep) = SNR_fine(min_idx)-SNR_opt;
 end
