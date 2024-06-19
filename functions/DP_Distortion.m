@@ -1,4 +1,4 @@
-function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Distortion(TX_Xpol,TX_Ypol, delta_nu,rad_sec)
+function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Distortion(TX_Xpol,TX_Ypol, delta_nu, rad_sec, SIG_symbolRate)
 %Performs delay, phase interferences and convolution
 
 delay = randi(floor(length(TX_Xpol)/160),1); % maximum delay of half a period
@@ -16,7 +16,7 @@ phase_init = (phase_init-1) *pi / 180; %radians
 % delta_nu = 50e3;  % Laser linewidth. 50kHz seems to be realisitic
 var = 2*pi*delta_nu;
 %var = var;
-samp_rate = 8*64e9; % deltaW of a Wiener process have a variance equal to the stime between steps
+samp_rate = 8*SIG_symbolRate; % deltaW of a Wiener process have a variance equal to the stime between steps
 % n = 1000;
 lenX = length(TX_Xpol)+delay;
 % lenY = length(TX_Ypol)+delay;

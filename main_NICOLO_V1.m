@@ -5,10 +5,11 @@ clc;
 % Load the .mat file
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
+Baud_rate = '128';
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
 r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
-load(strcat('C:\Users\utente\Documents\GitHub\OPTCOH\TXsequences\TXsequence_', MODULATIONS(r) , '_64GBaud.mat'));
+load(strcat('C:\Users\utente\Documents\GitHub\OPTCOH\TXsequences\TXsequence_', MODULATIONS(r) , '_',Baud_rate,'GBaud.mat'));
 
 %% PARAMETERS
 
@@ -58,11 +59,11 @@ for index_rad_pol = 1:points_to_sweep
     %% IMPAIRMENTS PART
     % Create delay and phase convolved signals
     if choise_rot==1
-        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(choise_rot), sweep_vector(choise_rot,index_rad_pol));
+        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(choise_rot), sweep_vector(choise_rot,index_rad_pol), SIG.symbolRate);
     elseif choise_rot==2
-        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, sweep_vector(choise_rot,index_rad_pol), standard_values(choise_rot));
+        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, sweep_vector(choise_rot,index_rad_pol), standard_values(choise_rot), SIG.symbolRate);
     else
-        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(1), standard_values(2));
+        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(1), standard_values(2), SIG.symbolRate);
     end
 
     %add chromatic dispersion
