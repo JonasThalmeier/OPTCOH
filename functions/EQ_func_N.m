@@ -9,10 +9,10 @@ h_yx = zeros(N_tap,1);
 h_yy = zeros(N_tap,1);
 
 if r==1
-    h_xx(1,1) = cos(pi/6);
-    h_yy(1,1) = cos(pi/6);
-    h_xy(1,1) = exp(-1i*pi/5)*sin(pi/6);
-    h_yx(1,1) = -exp(1i*pi/5)*sin(pi/6);
+    h_xx(ceil(N_tap/2),1) = 1;
+    h_yy(ceil(N_tap/2),1) = 1;
+    h_xy(ceil(N_tap/2),1) = 0;
+    h_yx(ceil(N_tap/2),1) = 0;
 else
     h_xx(ceil(N_tap/2),1) = 1;
     h_yy(ceil(N_tap/2),1) = 1;
@@ -42,7 +42,7 @@ for rep = 1:3
         rX = abs(X_out(k,1))^2;
         rY = abs(Y_out(k,1))^2;
         
-        if i>=N2 && RDE_flag==0 && rep==1
+        if i>=N2 && RDE_flag==0 && rep==1 
             RDE_flag = 1;
             mu = mu2;
         end
@@ -78,6 +78,8 @@ for rep = 1:3
             end
         end
 
+       % fprintf('%d \n', RX_2)
+        
         e_X(k)  = RX_2 - rX;
         if isnan(e_X(k))
             fprintf('X IS NAN\n')
