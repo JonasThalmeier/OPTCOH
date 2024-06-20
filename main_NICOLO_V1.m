@@ -14,12 +14,13 @@ load(strcat('C:\Users\utente\Documents\GitHub\OPTCOH\TXsequences\TXsequence_', M
 %% PARAMETERS
 
 BER_goal = 1e-3;
-points_to_sweep = 6;
+points_to_sweep = 10;
+limit_while = 10;
 
 if r == 1
     M = 4;
     power_norm = 2;
-    SNR_opt = 2*log10(10*erfinv(1-2*BER_goal)^2);
+    SNR_opt =10*log10(2*erfinv(1-2*BER_goal)^2);
 else
     M = 16;
     power_norm = 10;
@@ -30,8 +31,10 @@ TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate
 TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
 
 
-pol_sweep = logspace(1, 6, points_to_sweep);
+pol_sweep = logspace(1, 5, points_to_sweep);
 lw_sweep = logspace(4,6,points_to_sweep);
+
+disp(pol_sweep);
 
 sweep_vector = [pol_sweep; lw_sweep];
 standard_values = [50e3, 1e3]; %values to assign to the rotation not used
@@ -51,7 +54,7 @@ end
 
 Delta_Pol = zeros(1,points_to_sweep);
 
-clear pol_sweep lw_sweep poi;
+clear pol_sweep lw_sweep;
 
 %% SIUMULATION
 for index_rad_pol = 1:points_to_sweep
@@ -78,10 +81,13 @@ for index_rad_pol = 1:points_to_sweep
     %% CMA mine
 
     index = 0;
+    cycle = 0;
     OSNR_calc = 0;
     BER_Tot = 10;
     
-    while (index<length(OSNR_dB) && (round(BER_Tot-BER_goal,5)>=0.05e-3 || round(BER_Tot-BER_goal,5)<=(-0.05e-3)))
+    while (index<length(OSNR_dB) && (round(BER_Tot-BER_goal,5)>=0.05e-3 || round(BER_Tot-BER_goal,5)<=(-0.05e-3))) && (cycle<limit_while)
+
+        cycle = cycle+1;
 
         if choise_rot<3
             index = 1;
@@ -121,11 +127,11 @@ for index_rad_pol = 1:points_to_sweep
         
         %CMA parameters
         if r==1
-            N_tap = 15;
-            mu = 1e-4;
-            mu2 = 8e-5;
-            N1 = 5000;
-            N2 = 300000;
+            N_tap = 8; %13
+            mu = 8e-3; %7e-3
+            mu2 = 8e-4;
+            N1 = 1e3; %5000
+            N2 = 3e5; %300000
         else
             N_tap = 11; %13
             mu = 8e-3; %7e-3
@@ -157,14 +163,14 @@ for index_rad_pol = 1:points_to_sweep
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
         else
-            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 31.6);
-%             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100, 'NormalizedLoopBandwidth',1e-3);
+            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 1.6);
+%             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 230, 'NormalizedLoopBandwidth',1e-3);
 
-            %[X_test, phEstX_test] = carrSynch(X_eq_CMA);
+%             [X_test, phEstX_test] = carrSynch(X_eq_CMA);
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
     
 %             carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
-            %[Y_test, phEstY_test] = carrSynch2(Y_eq_CMA);
+%             [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
     
 %             [X_eq,~] = BPS_N(X_eq_CMA, 50, M, power_norm); 
@@ -242,118 +248,111 @@ for index_rad_pol = 1:points_to_sweep
 
         if choise_rot<3
             BER_Tot = (X_Ber_Tot+Y_Ber_Tot)./2;
+            fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot(index));
             OSNR_inv =  10*log10(10*erfinv(1-8/3*BER_Tot)^2);
             OSNR_calc = SNR_opt - OSNR_inv;
             index = 0;
         end
     end
-
-    fprintf('WHILE converged\n');
     
     if choise_rot>=3
         BER_Tot = (X_Ber_Tot+Y_Ber_Tot)./2;
     else
-        Delta_Pol(index_rad_pol) = OSNR_dB - SNR_opt ;
+        Delta_Pol(index_rad_pol) = OSNR_dB - SNR_opt;
+
+        if cycle==limit_while
+            Delta_Pol = Delta_Pol(1:index_rad_pol-1);
+            fprintf('Too much time to convergence, OSNR penalty too large\n');
+            break;
+        else
+            fprintf('WHILE converged\n');
+        end
     end
 end
-
-figure(), plot(Delta_Pol), title('OSNR penalty vs polarization'), xlabel('log(rad/sec)');
-
-fprintf('\n');
-
 %%
 
 %------------------FIGURES-------------
 
-if r==1
-    BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
+if choise_rot==1
+    figure(), semilogx(sweep_vector(1,1:length(Delta_Pol)), Delta_Pol, 'Color', 'r', 'LineWidth',2), title('OSNR penalty vs polarization rotation'), xlabel('log(rad/sec)'), grid on;
 
-    BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
-%     BER_MED_CMA = 0.5 * (X_Ber_Tot_CMA + Y_Ber_Tot_CMA);
-%     BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
-
-    figure();
-    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
-    xlim([min(OSNR_dB),max(OSNR_dB)]);
-    grid on;
-    hold on;
-    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1, 'LineStyle','-.');
-%     semilogy(OSNR_dB, X_Ber_Tot_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
-%     semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');    
-    title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-    legend('Theoretical BER', 'Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
-    xlabel('OSNR [dB]', 'Interpreter','latex');
-    hold off;
+elseif choise_rot==2 
+    figure(), semilogx(sweep_vector(2,1:length(Delta_Pol)),Delta_Pol, 'Color', '#7E2F8E', 'LineWidth',2), title('OSNR penalty vs phase rotation'), xlabel('log($\Delta\nu$)','Intepreter','latex'), grid on;
     
-    figure();
-    semilogy(OSNR_dB,BER_TH, 'r','LineWidth', 1); 
-    xlim([min(OSNR_dB),max(OSNR_dB)]);
-    grid on;
-    hold on;
-    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1, 'LineStyle','-.');
-    semilogy(OSNR_dB, Y_Ber_Tot_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
-    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');
-    title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
-    legend('Theoretical BER', 'Simulated BER - Matched filter', 'Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
-    xlabel('OSNR [dB]', 'Interpreter','latex');
-    hold off;
-
-    figure();
-    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
-    xlim([min(OSNR_dB),max(OSNR_dB)]);
-    grid on;
-    hold on;
-    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
-    semilogy(OSNR_dB, BER_MED_CMA, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
-    semilogy(OSNR_dB, BER_MED_LMS, 'Marker','o', 'Color', 'm', 'LineStyle','-.');
-    title(sprintf('%s BER curve',MODULATIONS(r)));
-    legend('Theoretical BER', 'Simulated BER - Matched filter','Simulated BER - CMA', 'Simulated BER - LMS', 'Interpreter', 'latex');
-    xlabel('OSNR [dB]', 'Interpreter','latex');
-    hold off;
-
 else
-
-    BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
-
-    BER_MED_MF = 0.5 * (X_Ber_Tot + Y_Ber_Tot);
-%     BER_MED_LMS = 0.5 * (X_Ber_Tot_LMS + Y_Ber_Tot_LMS);
-
-    figure();
-    semilogy(OSNR_dB, BER_TH, 'r');
-    xlim([min(OSNR_dB),max(OSNR_dB)]);
-    grid on;
-    hold on;
-    semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
-%     semilogy(OSNR_dB, X_Ber_Tot_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
-    title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
-%     legend('Theoretical BER', 'Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
-    xlabel('OSNR [dB]', 'Interpreter','latex');
-    hold off;
+    if r==1
+        BER_TH = 0.5 * erfc(sqrt(10.^(OSNR_dB/10)/2));
+     
+        figure();
+        semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+        xlim([min(OSNR_dB),max(OSNR_dB)]);
+        grid on;
+        hold on;
+        semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1, 'LineStyle','-.');  
+        title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
+        legend('Theoretical BER', 'Simulated BER - CMA', 'Interpreter', 'latex');
+        xlabel('OSNR [dB]', 'Interpreter','latex');
+        hold off;
+        
+        figure();
+        semilogy(OSNR_dB,BER_TH, 'r','LineWidth', 1); 
+        xlim([min(OSNR_dB),max(OSNR_dB)]);
+        grid on;
+        hold on;
+        semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineWidth', 1, 'LineStyle','-.');
+        title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
+        legend('Theoretical BER', 'Simulated BER - CMA', 'Interpreter', 'latex');
+        xlabel('OSNR [dB]', 'Interpreter','latex');
+        hold off;
     
-    figure();
-    semilogy(OSNR_dB,BER_TH, 'r');
-    xlim([min(OSNR_dB),max(OSNR_dB)]);
-    grid on;
-    hold on;
-    semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
-    semilogy(OSNR_dB, Y_Ber_Tot_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
-    semilogy(OSNR_dB,BER_TH, 'r');
-    title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
-    legend('Theoretical BER', 'Simulated BER - Matched filter', sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
-    xlabel('OSNR [dB]', 'Interpreter','latex');
-    hold off;   
+        figure();
+        semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+        xlim([min(OSNR_dB),max(OSNR_dB)]);
+        grid on;
+        hold on;
+        semilogy(OSNR_dB, BER_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+        title(sprintf('%s BER curve',MODULATIONS(r)));
+        legend('Theoretical BER', 'Simulated BER - CMA', 'Interpreter', 'latex');
+        xlabel('OSNR [dB]', 'Interpreter','latex');
+        hold off;
 
-    figure();
-    semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
-    xlim([min(OSNR_dB),max(OSNR_dB)]);
-    grid on;
-    hold on;
-    semilogy(OSNR_dB, BER_MED_MF, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
-    semilogy(OSNR_dB, BER_MED_LMS, 'Marker','o', 'Color', 'b', 'LineStyle','-.');
-    title(sprintf('%s BER curve',MODULATIONS(r)));
-    legend('Theoretical BER', 'Simulated BER - Matched filter',sprintf('Simulated BER - %s', algorithm), 'Interpreter', 'latex');
-    xlabel('OSNR [dB]', 'Interpreter','latex');
-    hold off;
+    else
+
+        BER_TH = 3/8 * erfc(sqrt(10.^(OSNR_dB/10)/10));
+
+        figure();
+        semilogy(OSNR_dB, BER_TH, 'r');
+        xlim([min(OSNR_dB),max(OSNR_dB)]);
+        grid on;
+        hold on;
+        semilogy(OSNR_dB, X_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+        title(sprintf('%s BER curve of Xpol',MODULATIONS(r)));
+        legend('Theoretical BER', 'Simulated BER - RDE', 'Interpreter', 'latex');
+        xlabel('OSNR [dB]', 'Interpreter','latex');
+        hold off;
+        
+        figure();
+        semilogy(OSNR_dB,BER_TH, 'r');
+        xlim([min(OSNR_dB),max(OSNR_dB)]);
+        grid on;
+        hold on;
+        semilogy(OSNR_dB,Y_Ber_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+        title(sprintf('%s BER curve of Ypol',MODULATIONS(r)));
+        legend('Theoretical BER', 'Simulated BER - RDE', 'Interpreter', 'latex');
+        xlabel('OSNR [dB]', 'Interpreter','latex');
+        hold off;   
     
+        figure();
+        semilogy(OSNR_dB, BER_TH, 'r', 'LineWidth', 1);
+        xlim([min(OSNR_dB),max(OSNR_dB)]);
+        grid on;
+        hold on;
+        semilogy(OSNR_dB, BER_Tot, 'Marker','o', 'Color', "#77AC30", 'LineStyle','-.', 'LineWidth', 1);
+        title(sprintf('%s BER curve',MODULATIONS(r)));
+        legend('Theoretical BER', 'Simulated BER - RDE', 'Interpreter', 'latex');
+        xlabel('OSNR [dB]', 'Interpreter','latex');
+        hold off;
+        
+    end
 end
 
