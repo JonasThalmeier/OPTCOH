@@ -14,8 +14,8 @@ load(strcat('C:\Users\utente\Documents\GitHub\OPTCOH\TXsequences\TXsequence_', M
 %% PARAMETERS
 
 BER_goal = 1e-3;
-points_to_sweep = 10;
-limit_while = 10;
+points_to_sweep = 6;
+limit_while = 7;
 
 if r == 1
     M = 4;
@@ -34,12 +34,18 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate
 pol_sweep = logspace(1, 5, points_to_sweep);
 lw_sweep = logspace(4,6,points_to_sweep);
 
-disp(pol_sweep);
+fprintf('The vector Polarizations is: [');
+fprintf('%g, ', pol_sweep(1:end-1));
+fprintf('%g]\n', pol_sweep(end));
+
+fprintf('The vector Linewidths is: [');
+fprintf('%g, ', lw_sweep(1:end-1));
+fprintf('%g]\n', lw_sweep(end));
 
 sweep_vector = [pol_sweep; lw_sweep];
 standard_values = [50e3, 1e3]; %values to assign to the rotation not used
 
-choise_rot = 1; % 1 or 2 to choose which sweep to apply (1-POL | 2-PHASE | >3-NO SWEEP)
+choise_rot = 2; % 1 or 2 to choose which sweep to apply (1-POL | 2-PHASE | >3-NO SWEEP)
 
 if choise_rot<3 
     OSNR_dB = SNR_opt;
@@ -248,7 +254,7 @@ for index_rad_pol = 1:points_to_sweep
 
         if choise_rot<3
             BER_Tot = (X_Ber_Tot+Y_Ber_Tot)./2;
-            fprintf('The BER on Ypol is: %.6f\n', Y_Ber_Tot(index));
+            fprintf('The BER is: %.6f\n', BER_Tot);
             OSNR_inv =  10*log10(10*erfinv(1-8/3*BER_Tot)^2);
             OSNR_calc = SNR_opt - OSNR_inv;
             index = 0;
@@ -274,10 +280,10 @@ end
 %------------------FIGURES-------------
 
 if choise_rot==1
-    figure(), semilogx(sweep_vector(1,1:length(Delta_Pol)), Delta_Pol, 'Color', 'r', 'LineWidth',2), title('OSNR penalty vs polarization rotation'), xlabel('log(rad/sec)'), grid on;
+    figure(), semilogx(sweep_vector(1,1:length(Delta_Pol)), Delta_Pol, 'Color', 'r', 'LineWidth',2), title('OSNR penalty vs polarization rotation'), xlabel('rad/sec'), grid on;
 
 elseif choise_rot==2 
-    figure(), semilogx(sweep_vector(2,1:length(Delta_Pol)),Delta_Pol, 'Color', '#7E2F8E', 'LineWidth',2), title('OSNR penalty vs phase rotation'), xlabel('log($\Delta\nu$)','Intepreter','latex'), grid on;
+    figure(), semilogx(sweep_vector(2,1:length(Delta_Pol)),Delta_Pol, 'Color', '#7E2F8E', 'LineWidth',2), title('OSNR penalty vs phase rotation'), xlabel('\Delta\nu'), grid on;
     
 else
     if r==1
