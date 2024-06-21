@@ -45,16 +45,18 @@ fprintf('%g]\n', lw_sweep(end));
 sweep_vector = [pol_sweep; lw_sweep];
 standard_values = [50e3, 1e3]; %values to assign to the rotation not used
 
-choise_rot = 2; % 1 or 2 to choose which sweep to apply (1-POL | 2-PHASE | >3-NO SWEEP)
+choise_rot = 3; % 1 or 2 to choose which sweep to apply (1-POL | 2-PHASE | >3-NO SWEEP)
 
 if choise_rot<3 
     OSNR_dB = SNR_opt;
 elseif choise_rot>=3 && r==1
     OSNR_dB = 3:11;
     points_to_sweep = 1;
+    limit_while = length(OSNR_dB);
 else
-    OSNR_dB = 17:20;
+    OSNR_dB = 10:18;
     points_to_sweep = 1;
+    limit_while = length(OSNR_dB);
 end
 
 
@@ -169,15 +171,14 @@ for index_rad_pol = 1:points_to_sweep
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
         else
-            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 1.6);
+            carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 31.6);
 %             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 230, 'NormalizedLoopBandwidth',1e-3);
-
 %             [X_test, phEstX_test] = carrSynch(X_eq_CMA);
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
     
-%             carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 240, 'NormalizedLoopBandwidth',.0002);%, 'ModulationPhaseOffset','Custom', 'CustomPhaseOffset', -pi/7);
+            carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 31.6);
 %             [Y_test, phEstY_test] = carrSynch(Y_eq_CMA);
-            [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
+            [Y_eq, phEstY] = carrSynch2(Y_eq_CMA);
     
 %             [X_eq,~] = BPS_N(X_eq_CMA, 50, M, power_norm); 
 %             [Y_eq,~] = BPS_N(Y_eq_CMA, 50, M, power_norm);
