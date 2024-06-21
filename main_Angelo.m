@@ -59,11 +59,11 @@ for index_rad_pol = 1:points_to_sweep
     %% IMPAIRMENTS PART
     % Create delay and phase convolved signals
     if choise_rot==1
-        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(choise_rot), sweep_vector(choise_rot,index_rad_pol));
+        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(choise_rot), sweep_vector(choise_rot,index_rad_pol), SIG.symbolRate);
     elseif choise_rot==2
-        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, sweep_vector(choise_rot,index_rad_pol), standard_values(choise_rot));
+        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, sweep_vector(choise_rot,index_rad_pol), standard_values(choise_rot), SIG.symbolRate);
     else
-        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(1), standard_values(2));
+        [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, standard_values(1), standard_values(2), SIG.symbolRate);
     end
 
     %add chromatic dispersion
@@ -156,6 +156,15 @@ for index_rad_pol = 1:points_to_sweep
             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', 150);
             [X_eq, phEstX] = carrSynch(X_eq_CMA);
             [Y_eq, phEstY] = carrSynch(Y_eq_CMA);
+%               XY_eq=[X_eq_CMA, Y_eq_CMA];
+%               Delta_nu = 50e3; % Laser line width
+%               Rs = 64e9;
+%               Es = 1; % Symbol energy (=radius)
+%               Npol = 2;
+%               windowlen = 100;
+%               XY_vit = vit_n_vit(XY_eq, Delta_nu, SIG.symbolRate, OSNR_dB(index), Es, Npol, M, windowlen);
+%               X_eq = XY_vit(:,1);
+%               Y_eq = XY_vit(:,2);
         else
             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 31.6);
 %             carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', 100, 'NormalizedLoopBandwidth',1e-3);
