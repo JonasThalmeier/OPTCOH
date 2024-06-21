@@ -8,17 +8,10 @@ h_xy = zeros(N_tap,1);
 h_yx = zeros(N_tap,1);
 h_yy = zeros(N_tap,1);
 
-if r==1
-    h_xx(ceil(N_tap/2),1) = 1;
-    h_yy(ceil(N_tap/2),1) = 1;
-    h_xy(ceil(N_tap/2),1) = 0;
-    h_yx(ceil(N_tap/2),1) = 0;
-else
-    h_xx(ceil(N_tap/2),1) = 1;
-    h_yy(ceil(N_tap/2),1) = 1;
-    h_xy(ceil(N_tap/2),1) = 0;
-    h_yx(ceil(N_tap/2),1) = 0;
-end
+h_xx(ceil(N_tap/2),1) = 1;
+h_yy(ceil(N_tap/2),1) = 1;
+h_xy(ceil(N_tap/2),1) = 0;
+h_yx(ceil(N_tap/2),1) = 0;
 
 for rep = 1:3
     e_X = zeros(1, (size(TX_sig,2)-N_tap+1)/2);
