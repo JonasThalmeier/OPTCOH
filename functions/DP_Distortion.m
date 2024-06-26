@@ -39,7 +39,7 @@ Theta = randi([0,0]) *pi / 180;
 stepsPol = sqrt(rad_sec/samp_rate)*randn(1,lenX);
 phasePol = cumsum(stepsPol)+Theta;
 
-figure(), plot(abs(acosd(phasePol))), title('Random walk polarization'), xlabel('Samples [n]'), ylabel('$\theta[n]$', 'Interpreter','latex')
+figure(), plot(abs(rad2deg(phasePol))), grid on, title('Polarization Random Walk'), xlabel('Samples [n]'), ylabel('\theta[n]  [deg]');
 
 amplitude = 1;
 phi = pi/3;
