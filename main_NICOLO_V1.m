@@ -5,17 +5,17 @@ clc;
 % Load the .mat file
 MODULATIONS = ["QPSK","16QAM"];
 modulation = ["QPSK" "QAM"];
-Baud_rate = '64';
+Baud_rate = '128';
 % r = randi([1, 2], 1); % Get a 1 or 2 randomly.
-r = 1;
+r = 2;
 fprintf('The transmitted moduluation is: %s\n', modulation(r));
 load(strcat('C:\Users\utente\Documents\GitHub\OPTCOH\TXsequences\TXsequence_', MODULATIONS(r) , '_',Baud_rate,'GBaud.mat'));
 
 %% PARAMETERS
 
-BER_goal = 1e-2;
-points_to_sweep = 6;
-limit_while = 5;
+BER_goal = 1e-3;
+points_to_sweep = 9;
+limit_while = 10;
 
 if r == 1
     M = 4;
@@ -31,8 +31,8 @@ TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate
 TX_BITS_Ypol = repmat(SIG.Ypol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
 
 
-pol_sweep = logspace(1, 6, points_to_sweep); % 1 to 5 for 16QAM
-lw_sweep = logspace(4,6,points_to_sweep);
+pol_sweep = logspace(1, 5, points_to_sweep); % 1 to 5 for 16QAM
+lw_sweep = logspace(4, 7, points_to_sweep);
 
 fprintf('The vector Polarizations is: [');
 fprintf('%g, ', pol_sweep(1:end-1));
@@ -45,7 +45,7 @@ fprintf('%g]\n', lw_sweep(end));
 sweep_vector = [pol_sweep; lw_sweep];
 standard_values = [50e3, 1e3]; %values to assign to the rotation not used
 
-choise_rot = 1; % 1 or 2 to choose which sweep to apply (1-POL | 2-PHASE | >3-NO SWEEP)
+choise_rot = 2; % 1 or 2 to choose which sweep to apply (1-POL | 2-PHASE | >3-NO SWEEP)
 
 if choise_rot<3 
     OSNR_dB = SNR_opt;
@@ -150,13 +150,17 @@ for index_rad_pol = 1:points_to_sweep
     
         [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig, r, mu, mu2, N_tap, N1, N2);
         
+        if ((index==1 && index_rad_pol==1 && choise_rot>=3) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep && choise_rot>=3))
+            scatterplot(X_out);
+            title(sprintf('%s Xpol after EQ, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
+        end
         
         cut = floor(N_tap/2);
     
     
         if ((index==1 && index_rad_pol==1) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep))
-        figure(), plot(e_X), title(sprintf('CMA error Xpol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
-        figure(), plot(e_Y), title(sprintf('CMA error Ypol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
+            figure(), plot(e_X), title(sprintf('CMA error Xpol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
+            figure(), plot(e_Y), title(sprintf('CMA error Ypol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
         end    
         
         
@@ -194,7 +198,7 @@ for index_rad_pol = 1:points_to_sweep
         end
         
         
-        if ((index==1 && index_rad_pol==1) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep))
+        if (((index==1 && index_rad_pol==1) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep)) && (cycle==1 || cycle==limit_while))
             scatterplot(X_eq);
             title(sprintf('%s Xpol after EQ and phase recovery, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
         end
@@ -230,7 +234,7 @@ for index_rad_pol = 1:points_to_sweep
             fprintf('Transient Ypol: %d\n', transient_Ypol)
         end
     
-        if (index==length(OSNR_dB) && j==1)
+        if (index==length(OSNR_dB) && j==1 && index_rad_pol==points_to_sweep && (cycle==1 || cycle==limit_while))
             scatterplot(X_RX);
             title(sprintf('%s Xpol after delay recovery, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
         end
@@ -273,8 +277,14 @@ for index_rad_pol = 1:points_to_sweep
 
                 BER_Tot = (X_Ber_Tot+Y_Ber_Tot)./2;
                 fprintf('The BER is: %.6f\n', BER_Tot);
-                OSNR_inv =  10*log10(10*erfinv(1-8/3*BER_Tot)^2);
-                OSNR_calc = SNR_opt - OSNR_inv;
+                if round(BER_Tot-BER_goal,5)>=9e-4 && round(BER_Tot-BER_goal,5)<=9e-3
+                    OSNR_calc = 1.5;
+                elseif round(BER_Tot-BER_goal,5)>=9e-3
+                    OSNR_calc = 4.5;
+                else
+                    OSNR_inv =  10*log10(10*erfinv(1-8/3*BER_Tot)^2);
+                    OSNR_calc = SNR_opt - OSNR_inv;
+                end
                 index = 0;
             end
         end
@@ -299,10 +309,10 @@ end
 %------------------FIGURES-------------
 
 if choise_rot==1
-    figure(), semilogx(sweep_vector(1,1:length(Delta_Pol)), Delta_Pol, 'Color', 'r', 'LineWidth',2), title('OSNR penalty vs polarization rotation'), xlabel('rad/sec'), ylabel('OSNR penalty [dB]'), grid on;
+    figure(), semilogx(sweep_vector(1,1:length(Delta_Pol)), Delta_Pol, 'Color', 'r', 'LineWidth',2), title(sprintf('%s OSNR penalty vs polarization rotation at BER=%.0d', MODULATIONS(r), BER_goal)), xlabel('rad/sec'), ylabel('OSNR penalty [dB]'), grid on;
 
 elseif choise_rot==2 
-    figure(), semilogx(sweep_vector(2,1:length(Delta_Pol)),Delta_Pol, 'Color', '#7E2F8E', 'LineWidth',2), title('OSNR penalty vs phase rotation'), xlabel('\Delta\nu'), ylabel('OSNR penalty [dB]'), grid on;
+    figure(), semilogx(sweep_vector(2,1:length(Delta_Pol)),Delta_Pol, 'Color', '#7E2F8E', 'LineWidth',2), title(sprintf('%s OSNR penalty vs phase rotation at BER=%.0d', MODULATIONS(r), BER_goal)), xlabel('\Delta\nu'), ylabel('OSNR penalty [dB]'), grid on;
     
 else
     if r==1

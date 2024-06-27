@@ -4,7 +4,7 @@ function [X_rec, theta] = BPS_N(X_in, B, M, power_norm)
     theta = zeros(L_x, 1);
     X_rec = zeros(size(X_in));
     D = zeros(B,L_x);
-    N = 10;
+    N = 50;
     a = zeros(1,L_x);
     phi_k = zeros(1,2);
 
