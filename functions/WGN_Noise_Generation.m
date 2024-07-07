@@ -31,6 +31,6 @@ Noise=NoiseNormalized*sqrt(NoisePower/4); %1e-3 pratically no noise it works, 1e
 
 % fprintf('The power noise generated is %.4f dBm\n', 10*log10(noise_power_perquad_perpol));
 
-delay_phase_noise_distorted_RX_Apol = delay_phase_distorted_RX_Apol + Noise';
+delay_phase_noise_distorted_RX_Apol = delay_phase_distorted_RX_Apol + Noise.';
 
 end
