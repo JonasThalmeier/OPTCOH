@@ -3,6 +3,7 @@ function [X_out, Y_out, e_X, e_Y] = LMS_N(TX_sig, modulation_r, mu, mu2, N_tap, 
 % for the moment consider as training sequence the whole transmission
 % (65536*10)
 
+% Reference vector for decoding
 distances_vector = qammod(0:(M-1), M, 'UnitAveragePower', true);
 
 %Taps initialization
@@ -16,26 +17,47 @@ h_yy(ceil(N_tap/2),1) = 1;
 h_xy(ceil(N_tap/2),1) = 0;
 h_yx(ceil(N_tap/2),1) = 0;
 
+% Align the received sequence with the reference one
+% [~,transient_Xpol] = max(abs(xcorr(TX_sig(1:2:65536*2,1), training_sequence(1:65536,1))));
+[transient_Xpol] = abs(finddelay(TX_sig(1:2:65536*2,1), training_sequence(1:65536,1)));
+% TX_sig_1 = TX_sig(transient_Xpol+1:end,1);
 
-e_X = zeros(1, (size(TX_sig,2)-N_tap+1)/2);
-e_Y = zeros(1, (size(TX_sig,2)-N_tap+1)/2);
+% [~,transient_Ypol] = max(abs(xcorr(TX_sig(1:2:65536*2,2), training_sequence(1:65536,2))));
+[transient_Ypol] = abs(finddelay(TX_sig(1:2:65536*2,2), training_sequence(1:65536,2)));
+% TX_sig_2 = TX_sig(transient_Ypol+1:end,2);
 
-X_out = zeros((size(TX_sig,2)-N_tap+1)/2, 1);
-Y_out = zeros((size(TX_sig,2)-N_tap+1)/2, 1);
-
-[~,transient_Xpol] = max(abs(xcorr(TX_sig(1:65536*2,1), training_sequence(1:65536,1))));
-TX_sig = TX_sig(transient_Xpol+1:end,1);
-
-[~,transient_Ypol] = max(abs(xcorr(TX_sig(1:65536*2,2), training_sequence(1:65536,2))));
-TX_sig = TX_sig(transient_Ypol+1:end,2);
-
+% Check of consistency of the transients
 if transient_Xpol ~= transient_Ypol
     fprintf('Transients in LMS are different\n');
+
+    diff = abs(transient_Ypol-transient_Xpol);
+
+    if transient_Ypol > transient_Xpol
+        TX_sig_1 = TX_sig(transient_Xpol+1:end-diff,1);
+        TX_sig_2 = TX_sig(transient_Ypol+1:end,2);
+    else
+        TX_sig_1 = TX_sig(transient_Xpol+1:end,1);
+        TX_sig_2 = TX_sig(transient_Ypol+1:end-diff,2);
+    end
+
+else
+        TX_sig_1 = TX_sig(transient_Xpol+1:end,1);
+        TX_sig_2 = TX_sig(transient_Ypol+1:end,2);
 end
 
-training_sequence = training_sequence(1:size(TX_sig,2), :);
+TX_sig = [TX_sig_1, TX_sig_2];
 
-for i = N_tap:2:size(TX_sig,2)   %size(training_sequence,2) when we don't know the whole sequence
+% Variables initialization
+e_X = zeros(1, floor(size(TX_sig,1)/2) - floor(N_tap/2) + 1);
+e_Y = zeros(1, floor(size(TX_sig,2)/2) - floor(N_tap/2) + 1);
+
+X_out = zeros(floor(size(TX_sig,1)/2) - floor(N_tap/2) + 1, 1);
+Y_out = zeros(floor(size(TX_sig,2)/2) - floor(N_tap/2) + 1, 1);
+
+% Cut training sequence to same length of RX sequence and starting at N_tap
+training_sequence = training_sequence(floor(N_tap/2):floor(size(TX_sig,1)/2), :);
+
+for i = N_tap:2:size(TX_sig,1)   %size(training_sequence,2) when we don't know the whole sequence
 
     k = floor(i/2) - floor(N_tap/2) + 1;
 
@@ -44,42 +66,14 @@ for i = N_tap:2:size(TX_sig,2)   %size(training_sequence,2) when we don't know t
    
     X_out(k,1) = h_xx' * x_in + h_xy' * y_in;
     Y_out(k,1) = h_yx' * x_in + h_yy' * y_in;
-
-    carrSynch = comm.CarrierSynchronizer("Modulation", modulation_r, "SamplesPerSymbol", 1,'DampingFactor', 31.6);
-    [X_eq, ~] = carrSynch(X_out);
-    
-    carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation_r, "SamplesPerSymbol", 1,'DampingFactor', 31.6);
-    [Y_eq, ~] = carrSynch2(Y_out);
-
-    error_tempX = zeros(1,4);
-    error_tempY = zeros(1,4);
-
-    for ind=0:3
-                  
-        X_RX = X_eq*exp(1i*ind*pi/2);
-        Y_RX = Y_eq*exp(1i*ind*pi/2);
-
-        x_demod = zeros(size(X_RX,1), size(X_RX,2));
-        y_demod = zeros(size(Y_RX,1), size(Y_RX,2));
-
-        for points = 1:length(X_RX)
-            [~, min_x]=min(abs(X_RX(points,:) - distances_vector.').^2);
-            x_demod(B_points,:) = distances_vector(min_x);
-
-            [~, min_y]=min(abs(Y_RX(points,:) - distances_vector.').^2);
-            y_demod(points,:) = distances_vector(min_y);
-        end
-
-
         
-    end
 
-    e_X(k)  = RX_2 - rX;
+    e_X(k)  = training_sequence(k, 1) - X_out(k,1);
     if isnan(e_X(k))
         fprintf('X IS NAN\n')
         pause;
     end
-    e_Y(k)  = RY_2 - rY;
+    e_Y(k)  = training_sequence(k, 2) - Y_out(k,1);
     if isnan(e_Y(k))
         fprintf('Y IS NAN\n')
         pause;
@@ -91,6 +85,8 @@ for i = N_tap:2:size(TX_sig,2)   %size(training_sequence,2) when we don't know t
     h_yy  = h_yy + mu * conj(e_Y(k)) .* y_in;
 
 end
+
+figure(), plot(abs(fft(h_xx)));
     
 
 % for i = len(transient_Xpol)+1:2:size(TX_sig,1)
