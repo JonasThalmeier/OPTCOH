@@ -49,7 +49,7 @@ X_Power = mean(abs((X_CD_rec)).^2);
 X_CD_rec_norm = X_CD_rec/sqrt(X_Power);
 
 Y_Power = mean(abs((Y_CD_rec)).^2);
-Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power);
+Y_CD_rec_norm = Y_CD_rec/sqrt(Y_Power);z
 
 TX_sig = [X_CD_rec_norm, Y_CD_rec_norm];
 
