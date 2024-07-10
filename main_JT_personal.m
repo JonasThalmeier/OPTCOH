@@ -1,4 +1,4 @@
-r=3;
+r=2;
 Rs=64;
 OSNR_dB=40;
 delta_nu=5e3;
@@ -47,6 +47,8 @@ for idx=1:length(OSNR_dB)
     % ----------------Compensation for CD-------------------
 
     [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
+    
+    [X_CD_rec,Y_CD_rec] = freq_compensation(X_CD_rec, Y_CD_rec, SIG.Sps, SIG.symbolRate);
 
     X_CD_rec = X_CD_rec(65536*8+1:end);
     Y_CD_rec = Y_CD_rec(65536*8+1:end);
