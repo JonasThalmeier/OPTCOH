@@ -1,4 +1,4 @@
-function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Distortion(TX_Xpol,TX_Ypol, delta_nu, rad_sec, SIG_symbolRate)
+function [delay_phase_distorted_RX_Xpol,delay_phase_distorted_RX_Ypol] = DP_Distortion(TX_Xpol,TX_Ypol, delta_nu, rad_sec, SIG_symbolRate,f_offset)
 %Performs delay, phase interferences and convolution
 
 delay = randi(floor(length(TX_Xpol)/160),1); % maximum delay of half a period
@@ -33,8 +33,7 @@ delay_phase_distorted_RX_Ypol_1 = [zeros(delay, 1, 'like', TX_Ypol)', TX_Ypol']'
 %--------------------frequency impairment-----------------
 N = length(delay_phase_distorted_RX_Xpol_1);            
 %after 6e9 f_offset stops work
-f_offset = 1e9;      % Frequency offset (1 GHz)
-T = 1/SIG_symbolRate; 
+T = 1/samp_rate; 
  
 t = (1:N)* T;
 delay_phase_distorted_RX_Xpol_1 = delay_phase_distorted_RX_Xpol_1 .* exp(1j*2*pi*f_offset*t)';

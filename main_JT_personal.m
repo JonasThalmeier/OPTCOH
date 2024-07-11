@@ -3,13 +3,14 @@ Rs=64;
 OSNR_dB=40;
 delta_nu=5e3;
 rad_sec=1e4;
+f_offset = 1e8;
 EQ_N_tap=31;
 EQ_mu=1e-5;
 EQ_mu2=1e-5;
 EQ_N1=1e4;
 EQ_N2=1e5;
 CarSync_DampFac=50;
-% OSNR_dB = 15:2.5:30;
+OSNR_dB = 5:5:20;
 MODULATIONS = ["QPSK","16QAM","64QAM"];
 modulation = ["QPSK","QAM","QAM"];
 Baud_rate = num2str(Rs);
@@ -32,7 +33,7 @@ TX_SYMB= [repmat(SIG.Xpol.txSymb,10,1), repmat(SIG.Ypol.txSymb,10,1)]; % repeat 
 
 
 % Create delay and phase convolved signals
-[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, delta_nu, rad_sec, SIG.symbolRate);
+[X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, delta_nu, rad_sec, SIG.symbolRate,f_offset);
 %add chromatic dispersion
 [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
 
@@ -50,18 +51,18 @@ for idx=1:length(OSNR_dB)
     
     [X_CD_rec,Y_CD_rec] = freq_compensation(X_CD_rec, Y_CD_rec, SIG.Sps, SIG.symbolRate);
 
-    X_CD_rec = X_CD_rec(65536*8+1:end);
-    Y_CD_rec = Y_CD_rec(65536*8+1:end);
+    % X_CD_rec = X_CD_rec(65536*8+1:end);
+    % Y_CD_rec = Y_CD_rec(65536*8+1:end);
 
     X_CD_rec = downsample(X_CD_rec, 4);
     Y_CD_rec = downsample(Y_CD_rec, 4);
 
-    if(rem(length(X_CD_rec),2) ~= 0)
-
-        X_CD_rec = X_CD_rec(2:end);
-        Y_CD_rec = Y_CD_rec(2:end);
-
-    end
+    % if(rem(length(X_CD_rec),2) ~= 0)
+    % 
+    %     X_CD_rec = X_CD_rec(2:end);
+    %     Y_CD_rec = Y_CD_rec(2:end);
+    % 
+    % end
 
     X_Power = mean(abs((X_CD_rec)).^2);
     X_CD_rec_norm = X_CD_rec/sqrt(X_Power/power_norm);
@@ -163,9 +164,9 @@ grid on;
 axis square;
 hold off;
 
-if r==2
-    axlim = axlim/1.3;
-end
+% if r==2
+%     axlim = axlim/1.3;
+% end
 
 subplot(2,2,3)
 [density,~,~,binX,binY] = histcounts2(real(X_out(2e5:2*jumps:end)), imag(X_out(2e5:2*jumps:end)), [num_bins num_bins]);  % 30x30 Gitter für die Dichte
@@ -201,7 +202,7 @@ grid on;
 axis square;
 hold off;
 
-sgtitle(sprintf('%s, BER=%0.1e',MODULATIONS(r),Ber_Tot));
+sgtitle(sprintf('%s, BER=%0.1e',MODULATIONS(r),Ber_Tot(end)));
 
 
 

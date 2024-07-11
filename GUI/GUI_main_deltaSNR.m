@@ -1,4 +1,4 @@
-function GUI_main_deltaSNR(r,Rs, start_sweep, end_sweep, points_to_sweep, log_or_lin, value2sweep, limit_while, BER_goal, delta_nu, rad_sec, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac)
+function GUI_main_deltaSNR(r,Rs, start_sweep, end_sweep, points_to_sweep, log_or_lin, value2sweep, limit_while, BER_goal, tol, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac)
 % GUI_main_deltaSNR(1,64, 0, 100e3, 4, 'lin', 'delta_nu', 10, 10e-4, 50e-3, 0, 8, 8e-3, 8e-4, 1e3,3e5,150);
 MODULATIONS = ["QPSK","16QAM","64QAM"];
 modulation = ["QPSK","QAM","QAM"];
@@ -39,6 +39,8 @@ for index = 1:points_to_sweep
             delta_nu = sweep_values(index);
         case 'rad_sec'
             rad_sec = sweep_values(index);
+        case 'freq_offset'
+            f_offset = sweep_values(index);
         case 'EQ_N_tap'
             EQ_N_tap = sweep_values(index);
         case 'EQ_mu'
@@ -47,8 +49,6 @@ for index = 1:points_to_sweep
             EQ_mu2 = sweep_values(index);
         case 'EQ_N1'
             EQ_N1 = sweep_values(index);
-        case 'EQ_N2'
-            EQ_N2 = sweep_values(index);
         case 'CarSync_DampFac'
             CarSync_DampFac = sweep_values(index);
     end
@@ -56,7 +56,7 @@ for index = 1:points_to_sweep
 
     %% IMPAIRMENTS PART
     % Create delay and phase convolved signals
-    [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, delta_nu, rad_sec, SIG.symbolRate);
+    [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, delta_nu, rad_sec, SIG.symbolRate, f_offset);
     %add chromatic dispersion
     [X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
 
@@ -66,11 +66,10 @@ for index = 1:points_to_sweep
     cycle = 0;
     OSNR_calc = 0;
     BER_Tot = 10;
-
-        while (round(BER_Tot-BER_goal,5)>=0.05e-3 || round(BER_Tot-BER_goal,5)<=(-0.05e-3)) && (cycle<limit_while)
+    while (round(BER_Tot/BER_goal,5)>=1+(tol/100) || round(BER_Tot/BER_goal,5)<=1-(tol/100)) && (cycle<limit_while)
         cycle = cycle+1;
         OSNR_dB = OSNR_dB + OSNR_calc;
-        BER_Tot = core_simulation(X_CD,Y_CD,r,Rs, OSNR_dB, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac,0);
+        BER_Tot = core_simulation(X_CD,Y_CD,r,Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac,0);
         if r==1
             OSNR_inv =  10*log10(2*erfinv(1-2*BER_Tot)^2);
             OSNR_calc = SNR_opt - OSNR_inv;
@@ -99,9 +98,9 @@ for index = 1:points_to_sweep
     Delta_SNR(index) = OSNR_dB - SNR_opt;
 
     if cycle==limit_while
-        Delta_SNR = Delta_SNR(1:index-1);
+        Delta_SNR(index) = NaN;
         fprintf('Too much time to convergence, OSNR penalty too large\n');
-        break;
+        % break;
     else
         fprintf('WHILE converged\n');
     end
@@ -113,7 +112,11 @@ end
 %------------------FIGURES-------------
 
 figure;
-semilogx(sweep_values(1,1:length(Delta_SNR)),Delta_SNR, 'Color', 'r', 'LineWidth',2);
+if log_or_lin == 'log'
+    semilogx(sweep_values(1,1:length(Delta_SNR)),Delta_SNR, 'Color', 'r', 'LineWidth',2);
+else
+    plot(sweep_values(1,1:length(Delta_SNR)),Delta_SNR, 'Color', 'r', 'LineWidth',2);
+end
 title(sprintf('%s OSNR penalty at BER=%.0d', MODULATIONS(r), BER_goal));
 xlabel(value2sweep);
 ylabel('OSNR penalty [dB]');
