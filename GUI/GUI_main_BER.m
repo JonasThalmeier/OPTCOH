@@ -9,10 +9,14 @@ if r == 1
     M = 4;
     power_norm = 2;
     BER_TH = 0.5 * erfc(sqrt(10.^(SNR_fine/10)/2));
-else
+elseif r==2
     M = 16;
     power_norm = 10;
     BER_TH = 3/8 * erfc(sqrt(10.^(SNR_fine/10)/10));
+else
+    M = 64;
+    power_norm = 42;
+    BER_TH = 7/24 * erfc(sqrt(10.^(OSNR_dB/10)/42));
 end
 
 TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate the original transmission

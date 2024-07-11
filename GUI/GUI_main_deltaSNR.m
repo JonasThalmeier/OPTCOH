@@ -9,10 +9,14 @@ if r == 1
     M = 4;
     power_norm = 2;
     SNR_opt = 10*log10(2*erfinv(1-2*BER_goal)^2);
-else
+elseif r==2
     M = 16;
     power_norm = 10;
     SNR_opt = 10*log10(10*erfinv(1-8/3*BER_goal)^2);
+else
+    M = 64;
+    power_norm = 42;
+    SNR_opt = 10*log10(42*erfinv(1-24/7*BER_goal)^2);
 end
 
 TX_BITS_Xpol = repmat(SIG.Xpol.bits,10,1); %repeat the bits 10 times to simulate the original transmission
@@ -63,14 +67,14 @@ for index = 1:points_to_sweep
     OSNR_calc = 0;
     BER_Tot = 10;
 
-    while (round(BER_Tot-BER_goal,5)>=0.05e-3 || round(BER_Tot-BER_goal,5)<=(-0.05e-3)) && (cycle<limit_while)
+        while (round(BER_Tot-BER_goal,5)>=0.05e-3 || round(BER_Tot-BER_goal,5)<=(-0.05e-3)) && (cycle<limit_while)
         cycle = cycle+1;
         OSNR_dB = OSNR_dB + OSNR_calc;
         BER_Tot = core_simulation(X_CD,Y_CD,r,Rs, OSNR_dB, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac,0);
         if r==1
             OSNR_inv =  10*log10(2*erfinv(1-2*BER_Tot)^2);
             OSNR_calc = SNR_opt - OSNR_inv;
-        else
+        elseif r==2
             if round(BER_Tot-BER_goal,5)>=9e-4 && round(BER_Tot-BER_goal,5)<=9e-3
                 OSNR_calc = 1.5;
             elseif round(BER_Tot-BER_goal,5)>=9e-3
@@ -79,9 +83,19 @@ for index = 1:points_to_sweep
                 OSNR_inv =  10*log10(10*erfinv(1-8/3*BER_Tot)^2);
                 OSNR_calc = SNR_opt - OSNR_inv;
             end
+        else
+            if round(BER_Tot-BER_goal,5)>=9e-4 && round(BER_Tot-BER_goal,5)<=9e-3
+                OSNR_calc = 1.5;
+            elseif round(BER_Tot-BER_goal,5)>=9e-3
+                OSNR_calc = 4.5;
+            else
+                OSNR_inv =  10*log10(42*erfinv(1-24/7*BER_Tot)^2);
+                OSNR_calc = SNR_opt - OSNR_inv;
+            end
         end
-
     end
+
+
     Delta_SNR(index) = OSNR_dB - SNR_opt;
 
     if cycle==limit_while
@@ -91,6 +105,7 @@ for index = 1:points_to_sweep
     else
         fprintf('WHILE converged\n');
     end
+
 
 end
 %%
