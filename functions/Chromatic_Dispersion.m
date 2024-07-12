@@ -1,4 +1,4 @@
-function [Xpol_CD, Ypol_CD] = Chromatic_Dispersion(Xpol, Ypol, SpS, flag)
+function [Xpol_CD, Ypol_CD] = Chromatic_Dispersion(Xpol, Ypol, SpS, flag, SIG_symbolRate)
 % Chromatic_Dispersion Simulates the effect of chromatic dispersion on optical signals.
 %
 % Inputs:
@@ -24,8 +24,8 @@ L = 100; % Length of the fiber in km
 beta_2 = -(D * c * 1e-3) / (2 * pi * (fc)^2); % Convert D to beta_2
 
 % Bandwidth and frequency axis
-Bs = SpS * 64e9; % System bandwidth
-f = (-Bs/2:Bs/length(Xpol):Bs/2 - Bs/length(Xpol)).'; % Frequency axis
+Bs = SpS * SIG_symbolRate; % System bandwidth
+f = linspace(-Bs/2, Bs/2, length(Xpol)).'; % Frequency axis
 f = f / 1e11 * 1e-1; % Normalize the frequency axis
 
 % Apply or compensate chromatic dispersion based on the flag
