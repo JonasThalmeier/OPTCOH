@@ -72,7 +72,7 @@ for idx=1:length(OSNR_dB)
 
     TX_sig = [X_CD_rec_norm, Y_CD_rec_norm];
 
-    [X_out, Y_out, e_X, e_Y] = LMS_N(TX_sig, modulation(r), EQ_mu, EQ_mu2, EQ_N_tap, TX_SYMB, M, 1*65536);
+    [X_out, Y_out, e_X, e_Y] = LMS(X_CD_rec_norm,Y_CD_rec_norm, EQ_mu, EQ_mu2, EQ_N_tap, TX_SYMB, M, 1*65536);
 
     cut = floor(EQ_N_tap/2);
 

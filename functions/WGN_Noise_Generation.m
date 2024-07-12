@@ -1,36 +1,43 @@
-function [delay_phase_noise_distorted_RX_Apol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Apol,SpS, M, EbN0, Rs)
+function [delay_phase_noise_distorted_RX_Apol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Apol, SpS, M, EbN0, Rs)
+% WGN_Noise_Generation Adds white Gaussian noise (WGN) to the input signal.
+%
+% Inputs:
+%   delay_phase_distorted_RX_Apol - Input signal with delay and phase distortion
+%   SpS - Samples per symbol
+%   M - Modulation order (e.g., 4 for QPSK, 16 for 16QAM)
+%   EbN0 - Energy per bit to noise power spectral density ratio (dB)
+%   Rs - Symbol rate (unused in this function)
+%
+% Outputs:
+%   delay_phase_noise_distorted_RX_Apol - Output signal with added WGN
+%   Noise - The generated noise that was added to the signal
 
+% Number of bits per symbol
 Nbit = log2(M);
-%EbN0 = 30; %dB
+
+% Convert Eb/N0 from dB to linear scale
 EbN0_lin = 10^(EbN0/10);
+
+% Number of samples in the input signal
 Nsamples = length(delay_phase_distorted_RX_Apol);
-% Signal Power evaluation
-SignalPower=mean(abs(delay_phase_distorted_RX_Apol).^2);
-% Noise variance evaluation (E_s = SignaPower*SpS; E_b = E_s/Nbit;
-% N_0=E_b/SNR; sigma^2 =N_0/2)
-NoisePower = SignalPower*SpS/(EbN0_lin);
-% Normalized Complex WGN generation (Noise Power set to 1)
-% NoiseNormalized=(randn(1,Nsamples)+1i*randn(1,Nsamples)/sqrt(2));
-NoiseNormalized=(1/sqrt(2))*(randn(1,Nsamples)+1i*randn(1,Nsamples));
-% Noise scaling to the given Eb/N0
-Noise=NoiseNormalized*sqrt(NoisePower/4); %1e-3 pratically no noise it works, 1e-2, 1e-1 too
 
-% sigma = 1/sqrt(2)*10^(-snr/20);
+% Evaluate the signal power
+SignalPower = mean(abs(delay_phase_distorted_RX_Apol).^2);
 
-% Nsamples = length(delay_phase_distorted_RX_Apol);
-% EbN0_lin = 10^(EbN0/10);
-% SignalPower=mean(abs(delay_phase_distorted_RX_Apol).^2);
-% Bsim = SpS * Rs;
-% N0 = SignalPower / (2*EbN0_lin*Rs);
-% Tot_power_noise = 1/2*N0*Bsim;
-% noise_power_perquad_perpol = Tot_power_noise/4;
-% sigma = sqrt(noise_power_perquad_perpol);
+% Evaluate the noise power
+% E_s = SignalPower * SpS (Energy per symbol)
+% E_b = E_s / Nbit (Energy per bit)
+% N_0 = E_b / EbN0_lin (Noise power spectral density)
+% Noise variance = N_0 / 2 (for complex noise)
+NoisePower = SignalPower * SpS / (EbN0_lin * 2);
 
-% Noise = sigma*randn(Nsamples,1)/sqrt(2)+1i*sigma*randn(Nsamples,1)/sqrt(2);
+% Generate normalized complex WGN (mean 0, variance 1)
+NoiseNormalized = (1/sqrt(2)) * (randn(1, Nsamples) + 1i * randn(1, Nsamples));
 
+% Scale the noise to the desired noise power
+Noise = NoiseNormalized * sqrt(NoisePower);
 
-% fprintf('The power noise generated is %.4f dBm\n', 10*log10(noise_power_perquad_perpol));
-
+% Add the noise to the input signal
 delay_phase_noise_distorted_RX_Apol = delay_phase_distorted_RX_Apol + Noise.';
 
 end

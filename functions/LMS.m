@@ -1,91 +1,122 @@
-function [X_out2,e_xx] = LMS(TX_sig,Pilot,mu,N_tap)
-% N1 when to change from CMA to RDE
-% N2 when to go from mu to mu2
-% TX_sig = TX_sig/mean(abs(TX_sig));
-%Taps initialization
-leng = 65536;
-%% CMA RDE
-h_xx = zeros(N_tap,1);
-h_xy = zeros(N_tap,1);
-h_yx = zeros(N_tap,1);
-h_yy = zeros(N_tap,1);
+function [X_out, Y_out, e_X, e_Y] = LMS(Xpol, Ypol, mu, mu2, N_tap, training_sequence, M, train_length)
+% LMS Performs LMS equalization for M-QAM modulated signals.
+%
+% Inputs:
+%   Xpol - Input signal for X polarization
+%   Ypol - Input signal for Y polarization
+%   mu - Learning rate for the training phase
+%   mu2 - Learning rate for the tracking phase
+%   N_tap - Number of taps for the adaptive filter
+%   training_sequence - Known training sequence for the equalizer training
+%   M - Modulation order (e.g., 16 for 16-QAM)
+%   train_length - Number of symbols used for training
+%
+% Outputs:
+%   X_out - Equalized output signal for X polarization
+%   Y_out - Equalized output signal for Y polarization
+%   e_X - Error signal for X polarization
+%   e_Y - Error signal for Y polarization
 
-h_xx(ceil(N_tap/2),1) = 1;
-h_yy(ceil(N_tap/2),1) = 1;
-h_xy(ceil(N_tap/2),1) = 0;
-h_yx(ceil(N_tap/2),1) = 0;
-TX_sig = [zeros(floor(N_tap/2),2);TX_sig;zeros(floor(N_tap/2),2)];
-X_out = zeros((size(TX_sig,2)-N_tap+1)/2, 2);
-for i = N_tap:2:size(TX_sig,1)
-    k = floor(i/2) - floor(N_tap/2) + 1;
-    x_in = TX_sig(i-N_tap+1:1:i, 1);
-    y_in = TX_sig(i-N_tap+1:1:i, 2);
+% Concatenate the input signals
+TX_sig = [Xpol, Ypol];
 
-    X_out(k,1) = h_xx' * x_in + h_xy' * y_in;
-    X_out(k,2) = h_yx' * x_in + h_yy' * y_in;
-    rX = abs(X_out(k,1));
-    rY = abs(X_out(k,2));
-    if rX > 1.236
-        R_X = 1.416;
-    elseif rX > 0.7641
-        R_X = 1.056;
+% Reference vector for decoding (QAM constellation points)
+distances_vector = qammod(0:(M-1), M);
+
+% Taps initialization
+h_xx = zeros(N_tap, 1);
+h_xy = zeros(N_tap, 1);
+h_yx = zeros(N_tap, 1);
+h_yy = zeros(N_tap, 1);
+
+% Set the main (middle) tap to 1 for the initial filter coefficients
+h_xx(ceil(N_tap/2), 1) = 1;
+h_yy(ceil(N_tap/2), 1) = 1;
+h_xy(ceil(N_tap/2), 1) = 0;
+h_yx(ceil(N_tap/2), 1) = 0;
+
+% Align the received sequence with the reference one using finddelay
+[transient_Xpol] = 2 * abs(finddelay(TX_sig(1:2:65536*2, 1), training_sequence(1:65536, 1)));
+[transient_Ypol] = 2 * abs(finddelay(TX_sig(1:2:65536*2, 2), training_sequence(1:65536, 2)));
+
+% Check consistency of the transients and align the signals accordingly
+if transient_Xpol ~= transient_Ypol
+    fprintf('Transients in LMS are different\n');
+    diff = abs(transient_Ypol - transient_Xpol);
+    if transient_Ypol > transient_Xpol
+        TX_sig_1 = TX_sig(transient_Xpol + 1:end - diff, 1);
+        TX_sig_2 = TX_sig(transient_Ypol + 1:end, 2);
     else
-        R_X = 0.4721;
+        TX_sig_1 = TX_sig(transient_Xpol + 1:end, 1);
+        TX_sig_2 = TX_sig(transient_Ypol + 1:end - diff, 2);
     end
-
-    if rY > 1.236
-        R_Y = 1.416;
-    elseif rX > 0.7641
-        R_Y = 1.056;
-    else
-        R_Y = 0.4721;
-    end
-
-    h_xx  = h_xx + mu * (R_X^2-rX^2) .* conj(X_out(k,1)) .* x_in;
-    h_yx  = h_yx + mu * (R_Y^2-rY^2) .* conj(X_out(k,2)) .* x_in;
-    h_yy  = h_yy + mu * (R_Y^2-rY^2) .* conj(X_out(k,2)) .* y_in;
-    h_xy  = h_xy + mu * (R_X^2-rX^2) .* conj(X_out(k,1)) .* y_in;
+else
+    TX_sig_1 = TX_sig(transient_Xpol + 1:end, 1);
+    TX_sig_2 = TX_sig(transient_Ypol + 1:end, 2);
 end
 
-scatterplot(X_out(round(end/2):end,1));title("After CMA RDE");
-% figure;stem(abs(X_out));title("After RDE");
-%% LMS
-delay = finddelay(Pilot(1:65000,1),X_out(end-2*(leng-floor(Ntap/2)):end,1));
-TX_sig = TX_sig(2*delay+floor(Ntap/2)+1:end,:);
-X_out2 = zeros((size(TX_sig,2)-N_tap+1)/2, 2);
-e_xx = zeros((size(TX_sig,2)-N_tap+1)/2, 2);
-N_tap = N_tap;
-mu = mu;
-h_xx = zeros(N_tap,1);
-h_xy = zeros(N_tap,1);
-h_yx = zeros(N_tap,1);
-h_yy = zeros(N_tap,1);
+% Zero padding to align the first symbol with the main tap of the filter
+TX_sig = [zeros(floor(N_tap/2), 2); TX_sig_1, TX_sig_2; zeros(floor(N_tap/2), 2)];
 
-h_xx(ceil(N_tap/2),1) = 1;
-h_yy(ceil(N_tap/2),1) = 1;
-h_xy(ceil(N_tap/2),1) = 0;
-h_yx(ceil(N_tap/2),1) = 0;
+% Variables initialization
+e_X = zeros(1, floor(size(TX_sig, 1)/2) - floor(N_tap/2) + 1);
+e_Y = zeros(1, floor(size(TX_sig, 2)/2) - floor(N_tap/2) + 1);
 
-for i = N_tap:2:size(TX_sig,1)
+X_out = zeros(floor(size(TX_sig, 1)/2) - floor(N_tap/2) + 1, 1);
+Y_out = zeros(floor(size(TX_sig, 2)/2) - floor(N_tap/2) + 1, 1);
 
+%% TRAINING PHASE
+for i = N_tap:2:2 * train_length
     k = floor(i/2) - floor(N_tap/2) + 1;
-    x_in = TX_sig(i-N_tap+1:1:i, 1);
-    y_in = TX_sig(i-N_tap+1:1:i, 2);
-    if k==3e5
-        mu = mu/2;
-        figure;stem(abs(h_xx));
-    elseif k==6e5
-        mu=mu/2;
-        figure;stem(abs(h_xx));
+    x_in = TX_sig(i:-1:i-N_tap+1, 1);
+    y_in = TX_sig(i:-1:i-N_tap+1, 2);
+    X_out(k, 1) = h_xx' * x_in + h_xy' * y_in;
+    Y_out(k, 1) = h_yx' * x_in + h_yy' * y_in;
+    e_X(k) = training_sequence(k, 1) - X_out(k, 1);
+    if isnan(e_X(k))
+        fprintf('X IS NAN\n')
+        pause;
     end
-    X_out2(k,1) = h_xx' * x_in + h_xy' * y_in;
-    X_out2(k,2) = h_yx' * x_in + h_yy' * y_in;
-    e(k,:) = (Pilot(k,:)-X_out2(k,:));
-    h_xx  = h_xx + mu * conj(e(k,1)) .* (x_in);
-    h_yx  = h_yx + mu * conj(e(k,2)) .* (x_in);
-    h_yy  = h_yy + mu * conj(e(k,2)) .* (y_in);
-    h_xy  = h_xy + mu * conj(e(k,1)) .* (y_in);
-end
-figure;stem(abs(h_xx));
+    e_Y(k) = training_sequence(k, 2) - Y_out(k, 1);
+    if isnan(e_Y(k))
+        fprintf('Y IS NAN\n')
+        pause;
+    end
+    % Update the filter coefficients using LMS algorithm
+    h_xx = h_xx + mu * conj(e_X(k)) .* x_in;
+    h_xy = h_xy + mu * conj(e_X(k)) .* y_in;
+    h_yx = h_yx + mu * conj(e_Y(k)) .* x_in;
+    h_yy = h_yy + mu * conj(e_Y(k)) .* y_in;
 end
 
+%% TRACKING PHASE
+for j = i + 2:2:size(TX_sig, 1)
+    k = floor(j/2) - floor(N_tap/2) + 1;
+    x_in = TX_sig(j:-1:j-N_tap+1, 1);
+    y_in = TX_sig(j:-1:j-N_tap+1, 2);
+    X_out(k, 1) = h_xx' * x_in + h_xy' * y_in;
+    Y_out(k, 1) = h_yx' * x_in + h_yy' * y_in;
+    % Estimate the transmitted symbols using minimum distance criterion
+    [~, ind] = min(abs(distances_vector - X_out(k, 1)));
+    X_est = distances_vector(ind);
+    [~, ind] = min(abs(distances_vector - Y_out(k, 1)));
+    Y_est = distances_vector(ind);
+    e_X(k) = X_est - X_out(k, 1);
+    if isnan(e_X(k))
+        fprintf('X IS NAN\n')
+        pause;
+    end
+    e_Y(k) = Y_est - Y_out(k, 1);
+    if isnan(e_Y(k))
+        fprintf('Y IS NAN\n')
+        pause;
+    end
+    % Update the filter coefficients using LMS algorithm
+    h_xx = h_xx + mu2 * conj(e_X(k)) .* x_in;
+    h_xy = h_xy + mu2 * conj(e_X(k)) .* y_in;
+    h_yx = h_yx + mu2 * conj(e_Y(k)) .* x_in;
+    h_yy = h_yy + mu2 * conj(e_Y(k)) .* y_in;
+end
+% Uncomment the following line to plot the FFT of the h_xx filter coefficients
+% figure(), plot(abs(fft(h_xx))); title('FFT(h_xx)');
+end

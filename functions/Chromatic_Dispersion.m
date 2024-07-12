@@ -1,52 +1,48 @@
-function [X_CD,Y_CD] = Chromatic_Dispersion(SIG_Xpol, SIG_Ypol, SpS, flag)
+function [Xpol_CD, Ypol_CD] = Chromatic_Dispersion(Xpol, Ypol, SpS, flag)
+% Chromatic_Dispersion Simulates the effect of chromatic dispersion on optical signals.
+%
+% Inputs:
+%   Xpol - Input signal for X polarization
+%   Ypol - Input signal for Y polarization
+%   SpS - Samples per symbol
+%   flag - Determines the direction of dispersion compensation
+%          1: Apply chromatic dispersion
+%          2: Compensate for chromatic dispersion
+%
+% Outputs:
+%   Xpol_CD - Output signal for X polarization after dispersion
+%   Ypol_CD - Output signal for Y polarization after dispersion
 
-f0 = 0;
-fc = 191; % Considering 1570 nm as the center frequency for c-band [THz]
+% Constants
+f0 = 0; % Center frequency offset
+fc = 191; % Center frequency for C-band [THz] (approximately 1570 nm)
 c = 3e8; % Speed of light in vacuum (m/s)
-%lambda = c / f0; % Wavelength of light in meters
 D = 17; % Dispersion parameter in ps/(nm*km)
 L = 100; % Length of the fiber in km
 
-beta_2 = -(D * c*1e-3) / (2 * pi * (fc)^2); % [ps^2/km]
+% Calculate the dispersion coefficient beta_2 [ps^2/km]
+beta_2 = -(D * c * 1e-3) / (2 * pi * (fc)^2); % Convert D to beta_2
 
-Bs = SpS * 64e9; 
+% Bandwidth and frequency axis
+Bs = SpS * 64e9; % System bandwidth
+f = (-Bs/2:Bs/length(Xpol):Bs/2 - Bs/length(Xpol)).'; % Frequency axis
+f = f / 1e11 * 1e-1; % Normalize the frequency axis
 
-% FIR filter
-% sample_period=1/Bs;
-
-% rho = 2 * pi * beta_2 * L/(sample_period*1e12)^2;
-% N_ti =  floor(abs(rho));
-% n = 0:N_ti-1;
-% 
-% h_ti = 1/sqrt(rho) .* exp(-1i*pi/rho .* (n-(N_ti-1)/2).^2);
-
-f = (-Bs/2:Bs/length(SIG_Xpol):Bs/2 - Bs/length(SIG_Xpol)).';
-
-f = f/1e11 * 1e-1;
-
-if (flag==1)
-    H_cd = exp(-1i * 2 * pi^2 * beta_2 * (f - f0).^2 * L);
+% Apply or compensate chromatic dispersion based on the flag
+if flag == 1
+    % Apply chromatic dispersion
+    H_cd = exp(-1i * 2 * pi^2 * beta_2 * (f - f0).^2 * L); % Transfer function for dispersion
+    Xpol_CD_fft = fft(Xpol) .* H_cd; % Apply dispersion in the frequency domain
+    Ypol_CD_fft = fft(Ypol) .* H_cd;
+    Xpol_CD = ifft(Xpol_CD_fft); % Transform back to the time domain
+    Ypol_CD = ifft(Ypol_CD_fft);
     
-    SIG_Xpol_txSig_disp_f = fft(SIG_Xpol).* H_cd;
-    SIG_Ypol_txSig_disp_f = fft(SIG_Ypol).* H_cd;
-    
-    X_CD = ifft(SIG_Xpol_txSig_disp_f);
-    Y_CD = ifft(SIG_Ypol_txSig_disp_f);
-    
-elseif (flag==2)
-    %fft_length=2^15; %try different parameters for it
-    %[X_CD,Y_CD]=CD_fil_fde(SIG_Xpol, SIG_Ypol, fft_length, D, lambda, sample_period);
-
-
-    H_cd = exp(1i * 2 * pi^2 * beta_2 * (f - f0).^2 * L);
-    
-    SIG_Xpol_txSig_disp_f = fft(SIG_Xpol).* H_cd;
-    SIG_Ypol_txSig_disp_f = fft(SIG_Ypol).* H_cd;
-    
-    X_CD = ifft(SIG_Xpol_txSig_disp_f);
-    Y_CD = ifft(SIG_Ypol_txSig_disp_f);
-    
-%     FIR filter
-%     X_CD = conv(SIG_Xpol, h_ti);
-%     Y_CD = conv(SIG_Ypol, h_ti);
+elseif flag == 2
+    % Compensate for chromatic dispersion
+    H_cd = exp(1i * 2 * pi^2 * beta_2 * (f - f0).^2 * L); % Inverse transfer function for dispersion
+    Xpol_CD_fft = fft(Xpol) .* H_cd; % Apply compensation in the frequency domain
+    Ypol_CD_fft = fft(Ypol) .* H_cd;
+    Xpol_CD = ifft(Xpol_CD_fft); % Transform back to the time domain
+    Ypol_CD = ifft(Ypol_CD_fft);
+end
 end
