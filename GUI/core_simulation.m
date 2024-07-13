@@ -30,8 +30,6 @@ matFilePath = fullfile(fileparts(mfilename('fullpath')), '..', 'TXsequences', fi
 % Load the .mat file
 load(matFilePath);
 
-
-
 % Repeat the transmitted bits and symbols 10 times to simulate the original transmission
 TX_BITS_Xpol = repmat(SIG.Xpol.bits, 10, 1);
 TX_BITS_Ypol = repmat(SIG.Ypol.bits, 10, 1);
@@ -48,7 +46,10 @@ else
     M = 64;
     power_norm = 42;
 end
-
+if size(SIG.Xpol.bits,2) ~=log2(M)
+    fprintf('Right file not loaded\n');
+    pause;
+end
 % Add AWGN noise to the signals
 [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB);
 [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB);
@@ -85,7 +86,6 @@ if EQ_mode == 'LMS'
 
     % Demap the equalized symbols to bits
     [X_demappedBits, X_demappedSymb, Y_demappedBits, Y_demappedSymb] = Demapping(X_eq, Y_eq, SIG.Xpol, M);
-
     % Calculate BER for X and Y polarizations
     X_BER = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits), :)) / (length(X_demappedBits) * log2(M));
     Y_BER = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits), :)) / (length(Y_demappedBits) * log2(M));
@@ -149,10 +149,10 @@ if scatplot ~= 0
 
     % Scatter plot for equalized output
     subplot(2, 2, 3);
-    [density, ~, ~, binX, binY] = histcounts2(real(X_eq(1:2*jumps:end)), imag(X_eq(1:2*jumps:end)), [num_bins num_bins]);
+    [density, ~, ~, binX, binY] = histcounts2(real(X_eq(round(end/2):jumps:end)), imag(X_eq(round(end/2):jumps:end)), [num_bins num_bins]);
     idx = sub2ind(size(density), binX, binY);
     pointDensity = density(idx);
-    scatter(real(X_eq(1:2*jumps:end)), imag(X_eq(1:2*jumps:end)), pointsize, pointDensity, 'filled');
+    scatter(real(X_eq(round(end/2):jumps:end)), imag(X_eq(round(end/2):jumps:end)), pointsize, pointDensity, 'filled');
     hold on;
     plot([0, 0], [-10, 10], 'k');
     plot([-10, 10], [0, 0], 'k');

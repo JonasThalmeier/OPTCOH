@@ -1,16 +1,16 @@
 r=1;
-Rs=64;
+Rs=128;
 OSNR_dB=40;
-delta_nu=1e4;
-rad_sec=1e3;
-f_offset = 1e6;
+delta_nu=0e4;
+rad_sec=0e3;
+f_offset = 0e6;
 EQ_N_tap=31;
 EQ_mu=1e-5;
 EQ_mu2=1e-5;
-EQ_N1=1e4;
+EQ_N1=1e5;
 EQ_N2=1e5;
 CarSync_DampFac=50;
-OSNR_dB = 5:5:20;
+OSNR_dB = 25:25:100;
 MODULATIONS = ["QPSK","16QAM","64QAM"];
 modulation = ["QPSK","QAM","QAM"];
 Baud_rate = num2str(Rs);
@@ -54,7 +54,7 @@ for idx=1:length(OSNR_dB)
     % ----------------Compensation for CD-------------------
 
     [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2, SIG.symbolRate);
-    
+
     [X_CD_rec,Y_CD_rec] = freq_compensation(X_CD_rec, Y_CD_rec, SIG.Sps, SIG.symbolRate);
 
     % X_CD_rec = X_CD_rec(65536*8+1:end);
@@ -78,7 +78,7 @@ for idx=1:length(OSNR_dB)
 
     TX_sig = [X_CD_rec_norm, Y_CD_rec_norm];
 
-    [X_out, Y_out, e_X, e_Y] = LMS(X_CD_rec_norm,Y_CD_rec_norm, EQ_mu, EQ_mu2, EQ_N_tap, TX_SYMB, M, 1*65536);
+    [X_out, Y_out, e_X, e_Y] = LMS(X_CD_rec_norm,Y_CD_rec_norm, EQ_mu, EQ_mu2, EQ_N_tap, TX_SYMB, M, EQ_N1);
 
     cut = floor(EQ_N_tap/2);
 
@@ -107,6 +107,7 @@ for idx=1:length(OSNR_dB)
     Y_BER = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
 
     Ber_Tot(idx) = .5*(min(X_BER)+min(Y_BER));
+    % Ber_Tot(idx) = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB(idx), EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac, 0);
 end
 
 if length(OSNR_dB)>1
