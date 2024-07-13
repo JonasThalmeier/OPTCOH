@@ -23,8 +23,14 @@ MODULATIONS = ["QPSK", "16QAM", "64QAM"];
 modulation = ["QPSK", "QAM", "QAM"];
 Baud_rate = num2str(Rs);
 
-% Load the transmitted sequence based on modulation and baud rate
-load(strcat('TXsequences/TXsequence_', MODULATIONS(r), '_', Baud_rate, 'GBaud.mat'));
+% Construct the file name dynamically
+fileName = sprintf('TXsequence_%s_%sGBaud.mat', MODULATIONS{r}, Baud_rate);
+% Construct the full path to the .mat file
+matFilePath = fullfile(fileparts(mfilename('fullpath')), '..', 'TXsequences', fileName);
+% Load the .mat file
+load(matFilePath);
+
+
 
 % Repeat the transmitted bits and symbols 10 times to simulate the original transmission
 TX_BITS_Xpol = repmat(SIG.Xpol.bits, 10, 1);
@@ -48,7 +54,7 @@ end
 [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB);
 
 % Compensate for chromatic dispersion
-[X_CD_rec, Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
+[X_CD_rec, Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2, SIG.symbolRate);
 
 % Perform frequency compensation
 [X_freq_rec, Y_freq_rec] = freq_compensation(X_CD_rec, Y_CD_rec, SIG.Sps, SIG.symbolRate);

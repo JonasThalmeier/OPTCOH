@@ -1,9 +1,9 @@
-r=2;
+r=1;
 Rs=64;
 OSNR_dB=40;
-delta_nu=5e3;
-rad_sec=1e4;
-f_offset = 1e8;
+delta_nu=1e4;
+rad_sec=1e3;
+f_offset = 1e6;
 EQ_N_tap=31;
 EQ_mu=1e-5;
 EQ_mu2=1e-5;
@@ -14,7 +14,13 @@ OSNR_dB = 5:5:20;
 MODULATIONS = ["QPSK","16QAM","64QAM"];
 modulation = ["QPSK","QAM","QAM"];
 Baud_rate = num2str(Rs);
-load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_',Baud_rate,'GBaud.mat'));
+% load(strcat('TXsequences/TXsequence_', MODULATIONS(r) , '_',Baud_rate,'GBaud.mat'));
+% Construct the file name dynamically
+fileName = sprintf('TXsequence_%s_%sGBaud.mat', MODULATIONS{r}, Baud_rate);
+% Construct the full path to the .mat file
+matFilePath = fullfile(fileparts(mfilename('fullpath')), 'TXsequences', fileName);
+% Load the .mat file
+load(matFilePath);
 
 if r == 1
     M = 4;

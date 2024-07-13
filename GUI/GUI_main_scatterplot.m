@@ -23,8 +23,12 @@ MODULATIONS = ["QPSK", "16QAM", "64QAM"];
 modulation = ["QPSK", "QAM", "QAM"];
 Baud_rate = num2str(Rs);
 
-% Load the transmitted sequence based on modulation and baud rate
-load(strcat('TXsequences/TXsequence_', MODULATIONS(r), '_', Baud_rate, 'GBaud.mat'));
+% Construct the file name dynamically
+fileName = sprintf('TXsequence_%s_%sGBaud.mat', MODULATIONS{r}, Baud_rate);
+% Construct the full path to the .mat file
+matFilePath = fullfile(fileparts(mfilename('fullpath')), '..', 'TXsequences', fileName);
+% Load the .mat file
+load(matFilePath);
 
 % Repeat the transmitted bits 10 times to simulate the original transmission
 TX_BITS_Xpol = repmat(SIG.Xpol.bits, 10, 1);
@@ -34,7 +38,7 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits, 10, 1);
 [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, delta_nu, rad_sec, SIG.symbolRate, f_offset);
 
 % Add chromatic dispersion
-[X_CD, Y_CD] = Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
+[X_CD, Y_CD] = Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1, SIG.symbolRate);
 
 %% SIMULATION
 % Run the core simulation and generate scatter plots
