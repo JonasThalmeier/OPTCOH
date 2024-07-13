@@ -53,15 +53,18 @@ for idx=1:length(OSNR_dB)
 
     % ----------------Compensation for CD-------------------
 
-    [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2, SIG.symbolRate);
+    X_distorted_AWGN = downsample(X_distorted_AWGN, 4);
+    Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4); 
 
-    [X_CD_rec,Y_CD_rec] = freq_compensation(X_CD_rec, Y_CD_rec, SIG.Sps, SIG.symbolRate);
+    [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, 2, 2, SIG.symbolRate);
+
+    [X_CD_rec,Y_CD_rec] = freq_compensation(X_CD_rec, Y_CD_rec, 2, SIG.symbolRate);
 
     % X_CD_rec = X_CD_rec(65536*8+1:end);
     % Y_CD_rec = Y_CD_rec(65536*8+1:end);
 
-    X_CD_rec = downsample(X_CD_rec, 4);
-    Y_CD_rec = downsample(Y_CD_rec, 4);
+%     X_CD_rec = downsample(X_CD_rec, 4);
+%     Y_CD_rec = downsample(Y_CD_rec, 4);
 
     % if(rem(length(X_CD_rec),2) ~= 0)
     % 

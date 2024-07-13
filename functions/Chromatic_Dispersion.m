@@ -32,17 +32,17 @@ f = f / 1e11 * 1e-1; % Normalize the frequency axis
 if flag == 1
     % Apply chromatic dispersion
     H_cd = exp(-1i * 2 * pi^2 * beta_2 * (f - f0).^2 * L); % Transfer function for dispersion
-    Xpol_CD_fft = fft(Xpol) .* H_cd; % Apply dispersion in the frequency domain
-    Ypol_CD_fft = fft(Ypol) .* H_cd;
-    Xpol_CD = ifft(Xpol_CD_fft); % Transform back to the time domain
-    Ypol_CD = ifft(Ypol_CD_fft);
+    Xpol_CD_fft = fftshift(fft(Xpol)) .* H_cd; % Apply dispersion in the frequency domain
+    Ypol_CD_fft = fftshift(fft(Ypol)) .* H_cd;
+    Xpol_CD = ifft(ifftshift(Xpol_CD_fft)); % Transform back to the time domain
+    Ypol_CD = ifft(ifftshift(Ypol_CD_fft));
     
 elseif flag == 2
     % Compensate for chromatic dispersion
     H_cd = exp(1i * 2 * pi^2 * beta_2 * (f - f0).^2 * L); % Inverse transfer function for dispersion
-    Xpol_CD_fft = fft(Xpol) .* H_cd; % Apply compensation in the frequency domain
-    Ypol_CD_fft = fft(Ypol) .* H_cd;
-    Xpol_CD = ifft(Xpol_CD_fft); % Transform back to the time domain
-    Ypol_CD = ifft(Ypol_CD_fft);
+    Xpol_CD_fft = fftshift(fft(Xpol)) .* H_cd; % Apply dispersion in the frequency domain
+    Ypol_CD_fft = fftshift(fft(Ypol)) .* H_cd;
+    Xpol_CD = ifft(ifftshift(Xpol_CD_fft)); % Transform back to the time domain
+    Ypol_CD = ifft(ifftshift(Ypol_CD_fft));
 end
 end
