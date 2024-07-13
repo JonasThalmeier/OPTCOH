@@ -35,19 +35,19 @@ TX_SYMB= [repmat(SIG.Xpol.txSymb,10,1), repmat(SIG.Ypol.txSymb,10,1)]; % repeat 
 % Create delay and phase convolved signals
 [X_distorted, Y_distorted] = DP_Distortion(SIG.Xpol.txSig, SIG.Ypol.txSig, delta_nu, rad_sec, SIG.symbolRate,f_offset);
 %add chromatic dispersion
-[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1);
+[X_CD,Y_CD]=Chromatic_Dispersion(X_distorted, Y_distorted, SIG.Sps, 1,SIG.symbolRate);
 
 Ber_Tot = zeros(length(OSNR_dB),1);
 %% SIUMULATION
 for idx=1:length(OSNR_dB)
 
-    [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(idx), SIG.symbolRate);
-    [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB(idx), SIG.symbolRate);
+    [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB(idx));
+    [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB(idx));
 
 
     % ----------------Compensation for CD-------------------
 
-    [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2);
+    [X_CD_rec,Y_CD_rec] = Chromatic_Dispersion(X_distorted_AWGN, Y_distorted_AWGN, SIG.Sps, 2, SIG.symbolRate);
     
     [X_CD_rec,Y_CD_rec] = freq_compensation(X_CD_rec, Y_CD_rec, SIG.Sps, SIG.symbolRate);
 

@@ -1,4 +1,4 @@
-function [delay_phase_noise_distorted_RX_Apol, Noise] = WGN_Noise_Generation(delay_phase_distorted_RX_Apol, SpS, M, EbN0, Rs)
+function [TX_noise, Noise] = WGN_Noise_Generation(TX, SpS, M, EbN0)
 % WGN_Noise_Generation Adds white Gaussian noise (WGN) to the input signal.
 %
 % Inputs:
@@ -19,25 +19,25 @@ Nbit = log2(M);
 EbN0_lin = 10^(EbN0/10);
 
 % Number of samples in the input signal
-Nsamples = length(delay_phase_distorted_RX_Apol);
+Nsamples = length(TX);
 
 % Evaluate the signal power
-SignalPower = mean(abs(delay_phase_distorted_RX_Apol).^2);
+SignalPower = mean(abs(TX).^2);
 
 % Evaluate the noise power
 % E_s = SignalPower * SpS (Energy per symbol)
 % E_b = E_s / Nbit (Energy per bit)
 % N_0 = E_b / EbN0_lin (Noise power spectral density)
 % Noise variance = N_0 / 2 (for complex noise)
-NoisePower = SignalPower * SpS / (EbN0_lin * 2);
+NoisePower = SignalPower * SpS / (EbN0_lin);
 
 % Generate normalized complex WGN (mean 0, variance 1)
 NoiseNormalized = (1/sqrt(2)) * (randn(1, Nsamples) + 1i * randn(1, Nsamples));
 
 % Scale the noise to the desired noise power
-Noise = NoiseNormalized * sqrt(NoisePower);
+Noise = NoiseNormalized * sqrt(NoisePower/4);
 
 % Add the noise to the input signal
-delay_phase_noise_distorted_RX_Apol = delay_phase_distorted_RX_Apol + Noise.';
+TX_noise = TX + Noise.';
 
 end
