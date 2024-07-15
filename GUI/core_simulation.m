@@ -1,4 +1,4 @@
-function [Ber_Tot] = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac, scatplot)
+function [Ber_Tot] = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, scatplot)
 % core_simulation Simulates the optical communication system and calculates the BER.
 %
 % Inputs:

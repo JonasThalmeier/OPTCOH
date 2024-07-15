@@ -1,4 +1,4 @@
-function GUI_main_scatterplot(r, Rs, OSNR_dB, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac)
+function GUI_main_scatterplot(r, Rs, OSNR_dB, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac)
 % GUI_main_scatterplot Generates scatter plots of the optical communication system signals.
 %
 % Inputs:
@@ -42,6 +42,6 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits, 10, 1);
 
 %% SIMULATION
 % Run the core simulation and generate scatter plots
-BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac, 1);
+BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, 1);
 
 end

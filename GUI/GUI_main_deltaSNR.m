@@ -1,4 +1,4 @@
-function GUI_main_deltaSNR(r, Rs, start_sweep, end_sweep, points_to_sweep, log_or_lin, value2sweep, limit_while, BER_goal, tol, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac)
+function GUI_main_deltaSNR(r, Rs, start_sweep, end_sweep, points_to_sweep, log_or_lin, value2sweep, limit_while, BER_goal, tol, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac)
 % GUI_main_deltaSNR Simulates the effect of various parameters on OSNR penalty at a given BER goal.
 %
 % Inputs:
@@ -107,7 +107,7 @@ for index = 1:points_to_sweep
         OSNR_dB = OSNR_dB + OSNR_calc;   % Adjust the OSNR value
 
         % Run the core simulation to get the BER for the current OSNR
-        BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, CarSync_DampFac, 0);
+        BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, 0);
 
         % Calculate the OSNR adjustment based on the BER and modulation scheme
         if r == 1
