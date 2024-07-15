@@ -65,7 +65,7 @@ Y_distorted_AWGN = downsample(Y_distorted_AWGN, 4);
 [X_freq_rec, Y_freq_rec] = freq_compensation(X_CD_rec, Y_CD_rec, 2, SIG.symbolRate);
 
 % Equalization using LMS if selected
-if EQ_mode == 'LMS'
+if isequal(EQ_mode, 'LMS')
 
     % Normalize the signal power
     X_Power = mean(abs(X_freq_rec).^2);
@@ -91,7 +91,7 @@ if EQ_mode == 'LMS'
     X_BER = biterr(X_demappedBits, TX_BITS_Xpol(1:length(X_demappedBits), :)) / (length(X_demappedBits) * log2(M));
     Y_BER = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits), :)) / (length(Y_demappedBits) * log2(M));
 
-elseif EQ_mode == 'CMA/LMS'
+elseif isequal(EQ_mode, 'CMA/RDE')
 
     % Normalize the signal power at unit power
     X_Power = mean(abs((X_freq_rec)).^2);
@@ -109,7 +109,7 @@ elseif EQ_mode == 'CMA/LMS'
 %         title(sprintf('%s Xpol after EQ, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
 %     end
     
-    cut = floor(N_tap/2);
+%     cut = floor(N_tap/2);
 
 
 %     if ((index==1 && index_rad_pol==1) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep))
@@ -160,9 +160,9 @@ elseif EQ_mode == 'CMA/LMS'
     
         % Normalize the equalized signal power
         X_Power = mean(abs(X_RX).^2);
-        X_eq = X_RX / sqrt(X_Power / power_norm);
+        X_RX = X_RX / sqrt(X_Power / power_norm);
         Y_Power = mean(abs(Y_RX).^2);
-        Y_eq = Y_RX / sqrt(Y_Power / power_norm);
+        Y_RX = Y_RX / sqrt(Y_Power / power_norm);
     
 %          if(index==length(OSNR_dB) && j==1)
 %             fprintf('Transient Xpol: %d\n', transient_Xpol)
@@ -185,6 +185,7 @@ elseif EQ_mode == 'CMA/LMS'
     
     X_BER = min(X_BER_int);
     Y_BER = min(Y_BER_int);
+    
 else
     % If no equalization is selected, set BER to a high value (not implemented in this code)
     X_BER = 1;
