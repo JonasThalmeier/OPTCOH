@@ -129,14 +129,14 @@ elseif isequal(EQ_mode, 'CMA/RDE')
     if r==1
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', CarSync_DampFac);
         [X_sync, phEstX] = carrSynch(X_eq);
-        [Y_sync, phEstY] = carrSynch(Y_sync);
+        [Y_sync, phEstY] = carrSynch(Y_eq);
 
     else
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', CarSync_DampFac);
         [X_sync, phEstX] = carrSynch(X_eq);
 
         carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', CarSync_DampFac);
-        [Y_sync, phEstY] = carrSynch2(Y_sync);
+        [Y_sync, phEstY] = carrSynch2(Y_eq);
 
     end
 

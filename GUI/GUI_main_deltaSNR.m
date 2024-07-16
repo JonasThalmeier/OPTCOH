@@ -72,20 +72,35 @@ for index = 1:points_to_sweep
     switch value2sweep
         case 'delta_nu'
             delta_nu = sweep_values(index);
+            axtitle = '$\Delta\nu$ [Hz]';
         case 'rad_sec'
             rad_sec = sweep_values(index);
+            axtitle = 'Polarisation rotation [rad/s]';
         case 'freq_offset'
             f_offset = sweep_values(index);
+            axtitle = 'frequency offset [Hz]';
         case 'EQ_N_tap'
             EQ_N_tap = sweep_values(index);
+            axtitle = 'EQ: Number of Taps';
         case 'EQ_mu'
             EQ_mu = sweep_values(index);
+            axtitle = 'EQ: $\mu_1$';
         case 'EQ_mu2'
             EQ_mu2 = sweep_values(index);
+            axtitle = 'EQ: $\mu_2$';
         case 'EQ_N1'
             EQ_N1 = sweep_values(index);
+            if isequal(EQ_mode, 'LMS')
+                axtitle = 'EQ: Training length';
+            else
+                axtitle = 'EQ: Number of Symbols after which CMS changes from single to multiole radii';
+            end
+        case 'EQ_N2'
+            EQ_N2 = sweep_values(index);
+            axtitle = 'EQ: Number of Symbols after which CMA goes from $\mu_1$ to $\mu_2$';
         case 'CarSync_DampFac'
             CarSync_DampFac = sweep_values(index);
+            axtitle = 'Carrier Synchronizer: Damping Factor';
     end
 
     %% IMPAIRMENTS PART
@@ -159,7 +174,7 @@ else
     plot(sweep_values, Delta_SNR, 'Color', 'r', 'LineWidth', 2);
 end
 title(sprintf('%s OSNR penalty at BER=%.0d', MODULATIONS(r), BER_goal));
-xlabel(value2sweep);
+xlabel(axtitle, 'Interpreter','latex');
 ylabel('OSNR penalty [dB]');
 axis tight;
 ylim([0, max(Delta_SNR)]);
