@@ -1,4 +1,4 @@
-function GUI_main_deltaSNR(r, Rs, start_sweep, end_sweep, points_to_sweep, log_or_lin, value2sweep, limit_while, BER_goal, tol, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac)
+function GUI_main_deltaSNR(r, Rs, start_sweep, end_sweep, points_to_sweep, log_or_lin, value2sweep, limit_while, BER_goal, tol, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac,savefigure,prjcname,lbl)
 % GUI_main_deltaSNR Simulates the effect of various parameters on OSNR penalty at a given BER goal.
 %
 % Inputs:
@@ -104,10 +104,12 @@ for index = 1:points_to_sweep
     % While loop for OSNR adjustment to meet the BER goal within tolerance
     while (round(BER_Tot / BER_goal, 5) >= 1 + (tol / 100) || round(BER_Tot / BER_goal, 5) <= 1 - (tol / 100)) && (cycle < limit_while)
         cycle = cycle + 1;               % Increment the cycle count
+        lbl.Text = sprintf('Sweep point %d/%d, Iteration %d/%d',index,points_to_sweep,cycle,limit_while);
+        drawnow;
         OSNR_dB = OSNR_dB + OSNR_calc;   % Adjust the OSNR value
 
         % Run the core simulation to get the BER for the current OSNR
-        BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, 0);
+        BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, [0,0,0,0,0],0);
 
         % Calculate the OSNR adjustment based on the BER and modulation scheme
         if r == 1
@@ -152,9 +154,9 @@ end
 %% PLOT RESULTS
 figure;
 if log_or_lin == 'log'
-    semilogx(sweep_values(1, 1:length(Delta_SNR)), Delta_SNR, 'Color', 'r', 'LineWidth', 2);
+    semilogx(sweep_values, Delta_SNR, 'Color', 'r', 'LineWidth', 2);
 else
-    plot(sweep_values(1, 1:length(Delta_SNR)), Delta_SNR, 'Color', 'r', 'LineWidth', 2);
+    plot(sweep_values, Delta_SNR, 'Color', 'r', 'LineWidth', 2);
 end
 title(sprintf('%s OSNR penalty at BER=%.0d', MODULATIONS(r), BER_goal));
 xlabel(value2sweep);
@@ -162,5 +164,29 @@ ylabel('OSNR penalty [dB]');
 axis tight;
 ylim([0, max(Delta_SNR)]);
 grid on;
+if savefigure == 1
+    if ~exist(prjcname, 'dir')
+        mkdir(prjcname);
+    end
+    savefig(fullfile(prjcname,'OPTCOH_SNR_penalty_plot'));
+    % Convert numeric values to strings
+    param_values = {MODULATIONS(r), num2str(Rs), num2str(OSNR_dB), num2str(delta_nu), ...
+        num2str(rad_sec), num2str(f_offset), EQ_mode, num2str(EQ_N_tap), ...
+        num2str(EQ_mu), num2str(EQ_mu2), num2str(EQ_N1), num2str(EQ_N2), ...
+        num2str(CarSync_DampFac)};
 
+    % Define parameter names
+    param_names = {'Modulation', 'Baud rate [GHz]', 'OSNR [dB]', 'delta nu [Hz]', ...
+        'Pol. rotation [rad/sec]', 'freq. offset [Hz]', 'EQ mode', ...
+        'EQ Num of Taps', 'EQ mu 1', 'EQ mu 2', 'EQ N1', 'EQ N2', ...
+        'Damping factor Carrier Sync'};
+    % Create a table
+    T = table(param_names', param_values', 'VariableNames', {'Parameter', 'Value'});
+    % Write the table to a text file
+    writetable(T, fullfile(prjcname,'OPTCOH_parameters.txt'), 'Delimiter', '\t');
+
+    T = table(sweep_values', Delta_SNR', 'VariableNames', {value2sweep, 'Delta SNR'});
+    % Write the table to a text file
+    writetable(T, fullfile(prjcname,'OPTCOH_Delta_SNR.txt'), 'Delimiter', '\t');
+end
 end

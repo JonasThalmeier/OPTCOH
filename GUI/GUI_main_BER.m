@@ -1,4 +1,4 @@
-function GUI_main_BER(r, Rs, start_sweep, end_sweep, points_to_sweep, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac)
+function GUI_main_BER(r, Rs, start_sweep, end_sweep, points_to_sweep, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac,savefigure,prjcname,lbl)
 % GUI_main_BER Simulates the BER vs. OSNR curve for different modulation schemes.
 %
 % Inputs:
@@ -73,7 +73,9 @@ Ber_Tot = zeros(1, points_to_sweep);
 % Run the core simulation for each OSNR value
 clc
 for index = 1:points_to_sweep
-    Ber_Tot(index) = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB(index), EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, 0);
+    lbl.Text = sprintf('Simulation of OSNR value %d/%d',index,points_to_sweep);
+    drawnow;
+    Ber_Tot(index) = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB(index), EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, [0,0,0,0,0],0);
     fprintf('BER simulation: %.1f%% \n', index/points_to_sweep*100);
 end
 
@@ -90,5 +92,29 @@ legend('Theoretical BER', 'Simulated BER', 'Interpreter', 'latex');
 xlabel('OSNR [dB]', 'Interpreter', 'latex');
 ylabel('BER', 'Interpreter', 'latex');
 hold off;
+if savefigure == 1
+    if ~exist(prjcname, 'dir')
+        mkdir(prjcname);
+    end
+    savefig(fullfile(prjcname,'OPTCOH_BER_plot'));
+    % Convert numeric values to strings
+    param_values = {MODULATIONS(r), num2str(Rs), num2str(delta_nu), ...
+        num2str(rad_sec), num2str(f_offset), EQ_mode, num2str(EQ_N_tap), ...
+        num2str(EQ_mu), num2str(EQ_mu2), num2str(EQ_N1), num2str(EQ_N2), ...
+        num2str(CarSync_DampFac)};
+    % Define parameter names
+    param_names = {'Modulation', 'Baud rate [GHz]', 'delta nu [Hz]', ...
+        'Pol. rotation [rad/sec]', 'freq. offset [Hz]', 'EQ mode', ...
+        'EQ Num of Taps', 'EQ mu 1', 'EQ mu 2', 'EQ N1', 'EQ N2', ...
+        'Damping factor Carrier Sync'};
+    % Create a table
+    T = table(param_names', param_values', 'VariableNames', {'Parameter', 'Value'});
+    % Write the table to a text file
+    writetable(T, fullfile(prjcname,'OPTCOH_parameters.txt'), 'Delimiter', '\t');
+    % Create a table
+    T = table(OSNR_dB', BER', 'VariableNames', {'OSNR [dB]', 'BER'});
+    % Write the table to a text file
+    writetable(T, fullfile(prjcname,'OPTCOH_BER.txt'), 'Delimiter', '\t');
+end
 
 end

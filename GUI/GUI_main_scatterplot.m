@@ -1,4 +1,4 @@
-function GUI_main_scatterplot(r, Rs, OSNR_dB, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac)
+function GUI_main_scatterplot(r, Rs, OSNR_dB, delta_nu, rad_sec, f_offset, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac,scatter_vec,savefigure,prjcname)
 % GUI_main_scatterplot Generates scatter plots of the optical communication system signals.
 %
 % Inputs:
@@ -42,6 +42,24 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits, 10, 1);
 
 %% SIMULATION
 % Run the core simulation and generate scatter plots
-BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, 1);
+BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, scatter_vec,savefigure,prjcname);
+if savefigure == 1
+    % Convert numeric values to strings
+    param_values = {MODULATIONS(r), num2str(Rs), num2str(OSNR_dB), num2str(delta_nu), ...
+        num2str(rad_sec), num2str(f_offset), EQ_mode, num2str(EQ_N_tap), ...
+        num2str(EQ_mu), num2str(EQ_mu2), num2str(EQ_N1), num2str(EQ_N2), ...
+        num2str(CarSync_DampFac)};
 
+    % Define parameter names
+    param_names = {'Modulation', 'Baud rate [GHz]', 'OSNR [dB]', 'delta nu [Hz]', ...
+        'Pol. rotation [rad/sec]', 'freq. offset [Hz]', 'EQ mode', ...
+        'EQ Num of Taps', 'EQ mu 1', 'EQ mu 2', 'EQ N1', 'EQ N2', ...
+        'Damping factor Carrier Sync'};
+
+    % Create a table
+    T = table(param_names', param_values', 'VariableNames', {'Parameter', 'Value'});
+
+    % Write the table to a text file
+    writetable(T, 'OPTCOH_parameters.txt', 'Delimiter', '\t');
+end
 end
