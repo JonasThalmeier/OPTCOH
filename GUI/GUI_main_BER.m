@@ -71,8 +71,10 @@ Ber_Tot = zeros(1, points_to_sweep);
 
 %% SIMULATION
 % Run the core simulation for each OSNR value
+clc
 for index = 1:points_to_sweep
     Ber_Tot(index) = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB(index), EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, 0);
+    fprintf('BER simulation: %.1f%% \n', index/points_to_sweep*100);
 end
 
 %% PLOT RESULTS
