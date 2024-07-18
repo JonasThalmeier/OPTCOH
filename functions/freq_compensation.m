@@ -24,12 +24,23 @@ t = (1:N) * T; % Time vector
 y = TX_Xpol .^ 4; % Fourth power nonlinearity for frequency estimation
 Y = fftshift(abs(fft(y))); % FFT and shift to center
 f_est = abs((1/4) * f(Y == max(Y))) / SIG_SpS; % Estimate the frequency offset
+if isnan(max(Y))
+    f_est=0;
+end
+
 X_CD_rec = TX_Xpol .* exp(-1j * 2 * pi * f_est * t)'; % Compensate for the frequency offset
+
 
 % Frequency offset estimation and compensation for Y polarization
 y = TX_Ypol .^ 4; % Fourth power nonlinearity for frequency estimation
 Y = fftshift(abs(fft(y))); % FFT and shift to center
 f_est = abs((1/4) * f(Y == max(Y))) / SIG_SpS; % Estimate the frequency offset
+if isnan(max(Y))
+    f_est=0;
+end
+
 Y_CD_rec = TX_Ypol .* exp(-1j * 2 * pi * f_est * t)'; % Compensate for the frequency offset
 
+
 end
+

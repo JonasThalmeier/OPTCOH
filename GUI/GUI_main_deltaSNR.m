@@ -122,7 +122,9 @@ for index = 1:points_to_sweep
         lbl.Text = sprintf('Sweep point %d/%d, Iteration %d/%d',index,points_to_sweep,cycle,limit_while);
         drawnow;
         OSNR_dB = OSNR_dB + OSNR_calc;   % Adjust the OSNR value
-
+        if OSNR_dB < 1
+            OSNR_dB = 10;
+        end
         % Run the core simulation to get the BER for the current OSNR
         BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, [0,0,0,0,0],0,prjcname,'deltaSNR');
 

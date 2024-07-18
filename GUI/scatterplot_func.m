@@ -17,12 +17,12 @@ function scatterplot_func(X_distorted_AWGN,Y_distorted_AWGN,X_CD_rec,Y_CD_rec,X_
 %   M - Modulation order
 
 % Create directory if it does not exist
-if ~exist(prjcname, 'dir')
+if ~exist(prjcname, 'dir') && savefigure
     mkdir(prjcname);
 end
 
 % Scatter plot settings
-num_bins = 50; % Number of bins for histogram
+num_bins = 100; % Number of bins for histogram
 num_points = 1e4; % Number of points for scatter plot
 jumps = round(0.5 * length(X_eq) / num_points); % Step size for plotting
 axlim = sqrt(M) + 1; % Axis limits for scatter plot
