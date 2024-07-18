@@ -93,6 +93,16 @@ if isequal(EQ_mode, 'LMS')
 
 elseif isequal(EQ_mode, 'CMA/RDE')
 
+    X_freq_rec = X_freq_rec(65536*2+1:end);
+    Y_freq_rec = Y_freq_rec(65536*2+1:end);
+
+    if(rem(length(X_freq_rec),2) ~= 0)
+
+        X_freq_rec = X_freq_rec(2:end);
+        Y_freq_rec = Y_freq_rec(2:end);
+
+    end
+
     % Normalize the signal power at unit power
     X_Power = mean(abs((X_freq_rec)).^2);
     X_CD_rec_norm = X_freq_rec/sqrt(X_Power);
