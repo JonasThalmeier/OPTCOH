@@ -160,10 +160,10 @@ for index = 1:points_to_sweep
     % Check for convergence
     if cycle == limit_while
         Delta_SNR(index:end) = NaN;
-        fprintf('Too much time to convergence, OSNR penalty too large\n');
-        break;
-    else
-        fprintf('WHILE converged\n');
+    %     fprintf('Too much time to convergence, OSNR penalty too large\n');
+    %     break;
+    % else
+    %     fprintf('WHILE converged\n');
     end
 end
 

@@ -41,7 +41,6 @@ h_yx(ceil(N_tap/2), 1) = 0;
 
 % Check consistency of the transients and align the signals accordingly
 if transient_Xpol ~= transient_Ypol
-    fprintf('Transients in LMS are different\n');
     diff = abs(transient_Ypol - transient_Xpol);
     if transient_Ypol > transient_Xpol
         TX_sig_1 = TX_sig(transient_Xpol + 1:end - diff, 1);

@@ -46,10 +46,7 @@ else
     M = 64;
     power_norm = 42;
 end
-if size(SIG.Xpol.bits,2) ~=log2(M)
-    fprintf('Right file not loaded\n');
-    pause;
-end
+
 % Add AWGN noise to the signals
 [X_distorted_AWGN, NoiseX] = WGN_Noise_Generation(X_CD, SIG.Sps, M, OSNR_dB);
 [Y_distorted_AWGN, NoiseY] = WGN_Noise_Generation(Y_CD, SIG.Sps, M, OSNR_dB);
@@ -107,45 +104,19 @@ elseif isequal(EQ_mode, 'CMA/RDE')
 
     [X_eq, Y_eq, e_X, e_Y] = EQ_func_N(TX_sig, r, EQ_mu, EQ_mu2, EQ_N_tap, EQ_N1, EQ_N2,GUIname,Rs);
 
-
-    %     if ((index==1 && index_rad_pol==1 && choise_rot>=3) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep && choise_rot>=3))
-    %         scatterplot(X_out);
-    %         title(sprintf('%s Xpol after EQ, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
-    %     end
-
-    %     cut = floor(N_tap/2);
-
-
-    %     if ((index==1 && index_rad_pol==1) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep))
-    %         figure(), plot(e_X), title(sprintf('CMA error Xpol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
-    %         figure(), plot(e_Y), title(sprintf('CMA error Ypol %d dB', OSNR_dB(index))), hold on, xline(cut, 'LineStyle','--', 'Color','r'), xlabel('N_samples');
-    %     end
-
-
-
-
     %------------------Delay&Phase recovery ---------------------
 
     if r==1
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', CarSync_DampFac);
         [X_sync, phEstX] = carrSynch(X_eq);
         [Y_sync, phEstY] = carrSynch(Y_eq);
-
     else
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', CarSync_DampFac);
         [X_sync, phEstX] = carrSynch(X_eq);
 
         carrSynch2 = comm.CarrierSynchronizer("Modulation", modulation(r), "SamplesPerSymbol", 1,'DampingFactor', CarSync_DampFac);
         [Y_sync, phEstY] = carrSynch2(Y_eq);
-
     end
-
-
-    %     if (((index==1 && index_rad_pol==1) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep)) && (cycle==1 || cycle==limit_while))
-    %         scatterplot(X_eq);
-    %         title(sprintf('%s Xpol after EQ and phase recovery, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
-    %     end
-
     X_BER_int = zeros(1,4);
     Y_BER_int = zeros(1,4);
     j=1;
@@ -165,16 +136,6 @@ elseif isequal(EQ_mode, 'CMA/RDE')
         X_RX = X_RX / sqrt(X_Power / power_norm);
         Y_Power = mean(abs(Y_RX).^2);
         Y_RX = Y_RX / sqrt(Y_Power / power_norm);
-
-        %          if(index==length(OSNR_dB) && j==1)
-        %             fprintf('Transient Xpol: %d\n', transient_Xpol)
-        %             fprintf('Transient Ypol: %d\n', transient_Ypol)
-        %         end
-
-        %         if (index==length(OSNR_dB) && j==1 && index_rad_pol==points_to_sweep && (cycle==1 || cycle==limit_while))
-        %             scatterplot(X_RX);
-        %             title(sprintf('%s Xpol after delay recovery, OSNR=%d dB',MODULATIONS(r), OSNR_dB(index)));
-        %         end
 
         [X_demappedBits, X_demappedSymb, Y_demappedBits, Y_demappedSymb] = Demapping(X_RX, Y_RX, SIG.Xpol, M);
 
