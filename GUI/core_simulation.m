@@ -1,4 +1,4 @@
-function [Ber_Tot] = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, scatter_vec, savefigure,prjcname)
+function [Ber_Tot] = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, scatter_vec, savefigure,prjcname,GUIname)
 % core_simulation Simulates the optical communication system and calculates the BER.
 %
 % Inputs:
@@ -74,7 +74,7 @@ if isequal(EQ_mode, 'LMS')
     Y_Power = mean(abs(Y_freq_rec).^2);
     Y_freq_rec_norm = Y_freq_rec / sqrt(Y_Power / power_norm);
 
-    [X_eq, Y_eq, e_X, e_Y] = LMS(X_freq_rec_norm, Y_freq_rec_norm, EQ_mu, EQ_mu2, EQ_N_tap, TX_SYMB, M, EQ_N1);
+    [X_eq, Y_eq, e_X, e_Y] = LMS(X_freq_rec_norm, Y_freq_rec_norm, EQ_mu, EQ_mu2, EQ_N_tap, TX_SYMB, M, EQ_N1,GUIname,r,Rs);
     N = 3; % Number of repetitions to drop before calculating the error, to avoid high BER rate because LMS did not converge yet
     X_eq = X_eq(N*65536 + 1:end - 100);
     Y_eq = Y_eq(N*65536 + 1:end - 100);
@@ -105,7 +105,7 @@ elseif isequal(EQ_mode, 'CMA/RDE')
 
     TX_sig = [X_CD_rec_norm, Y_CD_rec_norm];
 
-    [X_eq, Y_eq, e_X, e_Y] = EQ_func_N(TX_sig, r, EQ_mu, EQ_mu2, EQ_N_tap, EQ_N1, EQ_N2);
+    [X_eq, Y_eq, e_X, e_Y] = EQ_func_N(TX_sig, r, EQ_mu, EQ_mu2, EQ_N_tap, EQ_N1, EQ_N2,GUIname,Rs);
 
 
     %     if ((index==1 && index_rad_pol==1 && choise_rot>=3) || (index==length(OSNR_dB) && index_rad_pol==points_to_sweep && choise_rot>=3))

@@ -1,4 +1,4 @@
-function [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig,r,mu,mu2,N_tap,N1,N2)
+function [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig,r,mu,mu2,N_tap,N1,N2,GUIname,Rs)
 % N1 when to change from CMA to RDE
 % N2 when to go from mu to mu2
 
@@ -23,19 +23,19 @@ for rep = 1:3
     RDE_flag = 0;
 
     for i = N_tap:2:size(TX_sig,1)
-        
+
         k = floor(i/2) - floor(N_tap/2) + 1;
 
         x_in = TX_sig(i:-1:i-N_tap+1, 1);
         y_in = TX_sig(i:-1:i-N_tap+1, 2);
-       
+
         X_out(k,1) = h_xx' * x_in + h_xy' * y_in;
         Y_out(k,1) = h_yx' * x_in + h_yy' * y_in;
 
         rX = abs(X_out(k,1))^2;
         rY = abs(Y_out(k,1))^2;
-        
-        if i>=N2 && RDE_flag==0 && rep==1 
+
+        if i>=N2 && RDE_flag==0 && rep==1
             RDE_flag = 1;
             mu = mu2;
         end
@@ -71,24 +71,26 @@ for rep = 1:3
             end
         end
 
-       % fprintf('%d \n', RX_2)
-        
+        % fprintf('%d \n', RX_2)
+
         e_X(k)  = RX_2 - rX;
         if isnan(e_X(k))
-            fprintf('X IS NAN\n')
-            pause;
+            errordlg('CMA/RDE error diverged, try different parameters');
+            feval(GUIname,r,Rs,'CMA/RDE');
+            error('CMA/RDE error diverged, try different parameters');
         end
         e_Y(k)  = RY_2 - rY;
         if isnan(e_Y(k))
-            fprintf('Y IS NAN\n')
-            pause;
+            errordlg('CMA/RDE error diverged, try different parameters');
+            feval(GUIname,r,Rs,'CMA/RDE');
+            error('CMA/RDE error diverged, try different parameters');
         end
 
         h_xx  = h_xx + mu * e_X(k) .* x_in.*conj(X_out(k,1));
         h_xy  = h_xy + mu * e_X(k) .* y_in.*conj(X_out(k,1));
         h_yx  = h_yx + mu * e_Y(k) .* x_in.*conj(Y_out(k,1));
         h_yy  = h_yy + mu * e_Y(k) .* y_in.*conj(Y_out(k,1));
-    
+
 
     end
 end

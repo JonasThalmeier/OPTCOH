@@ -1,4 +1,4 @@
-function [X_out, Y_out, e_X, e_Y] = LMS(Xpol, Ypol, mu, mu2, N_tap, training_sequence, M, train_length)
+function [X_out, Y_out, e_X, e_Y] = LMS(Xpol, Ypol, mu, mu2, N_tap, training_sequence, M, train_length,GUIname,r,Rs)
 % LMS Performs LMS equalization for M-QAM modulated signals.
 %
 % Inputs:
@@ -74,13 +74,15 @@ for i = N_tap:2:2 * train_length
     Y_out(k, 1) = h_yx' * x_in + h_yy' * y_in;
     e_X(k) = training_sequence(k, 1) - X_out(k, 1);
     if isnan(e_X(k))
-        fprintf('X IS NAN\n')
-        pause;
+        errordlg('LMS error diverged in training, try different parameters');
+        feval(GUIname,r,Rs,'LMS');
+        error('LMS error diverged in training, try different parameters');
     end
     e_Y(k) = training_sequence(k, 2) - Y_out(k, 1);
     if isnan(e_Y(k))
-        fprintf('Y IS NAN\n')
-        pause;
+        errordlg('LMS error diverged in training, try different parameters');
+        feval(GUIname,r,Rs,'LMS');
+        error('LMS error diverged in training, try different parameters');
     end
     % Update the filter coefficients using LMS algorithm
     h_xx = h_xx + mu * conj(e_X(k)) .* x_in;
@@ -103,13 +105,15 @@ for j = i + 2:2:size(TX_sig, 1)
     Y_est = distances_vector(ind);
     e_X(k) = X_est - X_out(k, 1);
     if isnan(e_X(k))
-        fprintf('X IS NAN\n')
-        pause;
+        errordlg('LMS error diverged in tracking, try different parameters');
+        feval(GUIname,r,Rs,'LMS');
+        error('LMS error diverged in tracking, try different parameters');
     end
     e_Y(k) = Y_est - Y_out(k, 1);
     if isnan(e_Y(k))
-        fprintf('Y IS NAN\n')
-        pause;
+        errordlg('LMS error diverged in tracking, try different parameters');
+        feval(GUIname,r,Rs,'LMS');
+        error('LMS error diverged in tracking, try different parameters');
     end
     % Update the filter coefficients using LMS algorithm
     h_xx = h_xx + mu2 * conj(e_X(k)) .* x_in;

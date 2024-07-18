@@ -75,7 +75,7 @@ clc
 for index = 1:points_to_sweep
     lbl.Text = sprintf('Simulation of OSNR value %d/%d',index,points_to_sweep);
     drawnow;
-    Ber_Tot(index) = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB(index), EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, [0,0,0,0,0],0);
+    Ber_Tot(index) = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB(index), EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, [0,0,0,0,0],0,prjcname,'BER');
     fprintf('BER simulation: %.1f%% \n', index/points_to_sweep*100);
 end
 

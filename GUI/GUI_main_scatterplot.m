@@ -42,7 +42,7 @@ TX_BITS_Ypol = repmat(SIG.Ypol.bits, 10, 1);
 
 %% SIMULATION
 % Run the core simulation and generate scatter plots
-BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, scatter_vec,savefigure,prjcname);
+BER_Tot = core_simulation(X_CD, Y_CD, r, Rs, OSNR_dB, EQ_mode, EQ_N_tap, EQ_mu, EQ_mu2, EQ_N1, EQ_N2, CarSync_DampFac, scatter_vec,savefigure,prjcname,'Scatter');
 if savefigure == 1
     % Convert numeric values to strings
     param_values = {MODULATIONS(r), num2str(Rs), num2str(OSNR_dB), num2str(delta_nu), ...
@@ -60,6 +60,6 @@ if savefigure == 1
     T = table(param_names', param_values', 'VariableNames', {'Parameter', 'Value'});
 
     % Write the table to a text file
-    writetable(T, 'OPTCOH_parameters.txt', 'Delimiter', '\t');
+    writetable(T, fullfile(prjcname,'OPTCOH_Delta_SNR.txt'), 'Delimiter', '\t');
 end
 end
