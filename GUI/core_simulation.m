@@ -102,10 +102,9 @@ elseif isequal(EQ_mode, 'CMA/RDE')
 
     TX_sig = [X_CD_rec_norm, Y_CD_rec_norm];
 
-    [X_eq, Y_eq, e_X, e_Y] = EQ_func_N(TX_sig, r, EQ_mu, EQ_mu2, EQ_N_tap, EQ_N1, EQ_N2,GUIname,Rs);
+    [X_eq, Y_eq, e_X, e_Y] = CMA_RDE(TX_sig, r, EQ_mu, EQ_mu2, EQ_N_tap, EQ_N1, EQ_N2,GUIname,Rs);
 
     %------------------Delay&Phase recovery ---------------------
-
     if r==1
         carrSynch = comm.CarrierSynchronizer("Modulation", modulation(r),"SamplesPerSymbol", 1, 'DampingFactor', CarSync_DampFac);
         [X_sync, phEstX] = carrSynch(X_eq);
@@ -122,7 +121,6 @@ elseif isequal(EQ_mode, 'CMA/RDE')
     j=1;
 
     for i=0:pi/2:3/2*pi
-
         X_RX = X_sync*exp(1i*i);
         [~,transient_Xpol] = max(abs(xcorr(X_RX(1:65536*2), SIG.Xpol.txSymb)));
         X_RX = X_RX(transient_Xpol+1:end);
@@ -143,7 +141,6 @@ elseif isequal(EQ_mode, 'CMA/RDE')
         Y_BER_int(j) = biterr(Y_demappedBits, TX_BITS_Ypol(1:length(Y_demappedBits),:))/(length(Y_demappedBits)*(log2(M)));
 
         j=j+1;
-
     end
 
     X_BER = min(X_BER_int);

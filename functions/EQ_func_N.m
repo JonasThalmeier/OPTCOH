@@ -1,5 +1,5 @@
-function [X_out, Y_out, e_X, e_Y] = EQ_func_N(TX_sig,r,mu,mu2,N_tap,N1,N2,GUIname,Rs)
-% EQ_func_N performs equalization on the transmitted signal using CMA/RDE algorithms.
+function [X_out, Y_out, e_X, e_Y] = CMA_RDE(TX_sig,r,mu,mu2,N_tap,N1,N2,GUIname,Rs)
+% CMA_RDE performs equalization on the transmitted signal using CMA/RDE algorithms.
 %
 % Inputs:
 %   TX_sig - Transmitted signal
