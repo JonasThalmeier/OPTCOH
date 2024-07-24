@@ -1,6 +1,6 @@
 <deployment-project plugin="plugin.apptool" plugin-version="1.0">
-  <configuration build-checksum="1597984955" file="C:\Users\jonas\MATLAB\Projects\OPTCOH\OptCoh.prj" location="C:\Users\jonas\MATLAB\Projects\OPTCOH" name="OptCoh" target="target.mlapps" target-name="Package App">
-    <param.appname>OptCoh</param.appname>
+  <configuration build-checksum="622684791" file="C:\Users\utente\Documents\GitHub\OPTCOH\OPTCOH.prj" location="C:\Users\utente\Documents\GitHub\OPTCOH" name="OPTCOH" target="target.mlapps" target-name="Package App">
+    <param.appname>OPTCOH</param.appname>
     <param.authnamewatermark>Angelo Rollo, Nicolò Benso,Jonas Thalmeier</param.authnamewatermark>
     <param.email>s324419@studenti.polito.it</param.email>
     <param.company>Politecnico di Torino</param.company>
@@ -8,11 +8,20 @@
     <param.icons />
     <param.summary />
     <param.description>OptCoh is a sophisticated simulator designed for high-speed optical communication systems, focusing on coherent detection. It allows users to model and evaluate the performance an optical system under different conditions. The app features a user-friendly MATLAB GUI for setting up simulations, adjusting parameters, and visualizing results through BER curves, OSNR penalties, and scatter plots. By providing detailed insights into the influence of transmitter, link, and receiver parameters, OptCoh aids in the optimization and analysis of coherent optical networks.</param.description>
-    <param.screenshot>C:\Users\jonas\AppData\Local\Temp\tpc976c734_cb19_4152_915a_cb47f2d07ce2.png</param.screenshot>
+    <param.screenshot>C:\Users\utente\AppData\Local\Temp\tp85e7a023_daeb_4389_8168_953596694ae2.png</param.screenshot>
     <param.version>1.0</param.version>
-    <param.products.name />
-    <param.products.id />
-    <param.products.version />
+    <param.products.name>
+      <item>MATLAB</item>
+      <item>Communications Toolbox</item>
+    </param.products.name>
+    <param.products.id>
+      <item>1</item>
+      <item>36</item>
+    </param.products.id>
+    <param.products.version>
+      <item>9.11</item>
+      <item>7.6</item>
+    </param.products.version>
     <param.platforms />
     <param.output>${PROJECT_ROOT}</param.output>
     <param.guid>f15247f6-67e5-4bd5-94d9-3adce9daa2da</param.guid>
@@ -21,9 +30,6 @@
       <param.icons />
       <param.summary />
       <param.version />
-      <param.products.name />
-      <param.products.id />
-      <param.products.version />
       <param.platforms />
       <param.output />
     </unset>
@@ -53,49 +59,12 @@
     </fileset.resources>
     <fileset.package />
     <build-deliverables>
-      <file location="C:\Users\jonas\MATLAB\Projects" name="OPTCOH" optional="false">C:\Users\jonas\MATLAB\Projects\OPTCOH</file>
+      <file location="C:\Users\utente\Documents\GitHub" name="OPTCOH" optional="false">C:\Users\utente\Documents\GitHub\OPTCOH</file>
     </build-deliverables>
     <workflow />
     <matlab>
-      <root>C:\Program Files\MATLAB\R2023b</root>
-      <toolboxes>
-        <toolbox name="matlabcoder" />
-        <toolbox name="embeddedcoder" />
-        <toolbox name="gpucoder" />
-        <toolbox name="fixedpoint" />
-        <toolbox name="matlabhdlcoder" />
-        <toolbox name="neuralnetwork" />
-      </toolboxes>
-      <toolbox>
-        <matlabcoder>
-          <enabled>true</enabled>
-        </matlabcoder>
-      </toolbox>
-      <toolbox>
-        <embeddedcoder>
-          <enabled>true</enabled>
-        </embeddedcoder>
-      </toolbox>
-      <toolbox>
-        <gpucoder>
-          <enabled>true</enabled>
-        </gpucoder>
-      </toolbox>
-      <toolbox>
-        <fixedpoint>
-          <enabled>true</enabled>
-        </fixedpoint>
-      </toolbox>
-      <toolbox>
-        <matlabhdlcoder>
-          <enabled>true</enabled>
-        </matlabhdlcoder>
-      </toolbox>
-      <toolbox>
-        <neuralnetwork>
-          <enabled>true</enabled>
-        </neuralnetwork>
-      </toolbox>
+      <root>C:\Program Files\MATLAB\R2021b</root>
+      <toolboxes />
     </matlab>
     <platform>
       <unix>false</unix>
